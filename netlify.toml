@@ -1,0 +1,24 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA fallback: every unknown path is served by the client-side router.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Web MIDI is a permission-gated API; Netlify's default headers do not block it,
+# but an explicit permissions policy keeps it working when the site is framed.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "midi=(self)"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
