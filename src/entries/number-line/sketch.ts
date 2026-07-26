@@ -11,7 +11,7 @@ const setTracking = (ctx: CanvasRenderingContext2D, value: string): void => {
  * What each pad adds. Sign by row, magnitude by column — pads 1-4 are the
  * bottom row of the LPD8, so the negatives sit under their positive twins.
  */
-export const DELTAS = [-1, -5, -10, -25, 1, 5, 10, 25];
+export const DELTAS = [-1, -2, -5, -10, 1, 2, 5, 10];
 
 /** Never zoom in tighter than this many units, or zero has nowhere to sit. */
 const MIN_EXTENT = 2.5;
@@ -124,7 +124,14 @@ export const createNumberLine: SketchFactory = (): Sketch => {
       const detail = kRuler;
       const sparkle = kSparkle;
 
-      const axisY = Math.round(height * 0.68) + 0.5;
+      // Labels are sized first: the axis has to sit high enough to leave room
+      // for them underneath, whatever size they have been turned up to.
+      const labelSize = clamp(range(detail, 15, 0.075 * height + 14), 15, height * 0.1);
+      const tick = labelSize * 0.55;
+      const labelBlock = tick * 1.7 + labelSize * 1.2;
+      // The page draws its own controls across the bottom of the stage.
+      const footer = Math.min(height * 0.22, 120);
+      const axisY = Math.round(Math.min(height * 0.68, height - footer - labelBlock)) + 0.5;
       // Arcs stop short of the top so they clear the stage's own control bar.
       const ceiling = axisY * 0.76;
       const g = height * 2.6 * tempo * tempo;
@@ -320,53 +327,56 @@ export const createNumberLine: SketchFactory = (): Sketch => {
 
       /* ------------------------------------------------------------- ruler */
 
-      const step = niceStep(span, range(detail, 4, 15));
+      // Tick spacing follows from the label size, so the numbers are never
+      // squeezed together however big they have been turned up.
+      const widest = Math.max(plain(Math.round(lo)).length, plain(Math.round(hi)).length);
+      const labelRoom = labelSize * (0.62 * widest + 1.6);
+      const step = niceStep(span, width / labelRoom);
       const minorStep = step >= 5 ? step / 5 : step === 2 ? 1 : 0;
-      const labelSize = clamp(width * 0.011, 9, 13);
 
       ctx.textBaseline = 'top';
       ctx.textAlign = 'center';
 
       if (minorStep > 0 && minorStep * perUnit > 5) {
-        ctx.strokeStyle = hsl(hue, 30, 70, 0.16);
+        ctx.strokeStyle = hsl(hue, 30, 70, 0.18);
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (let v = Math.ceil(lo / minorStep) * minorStep; v <= hi; v += minorStep) {
           const x = Math.round(sx(v)) + 0.5;
           ctx.moveTo(x, axisY);
-          ctx.lineTo(x, axisY + 5);
+          ctx.lineTo(x, axisY + tick * 0.5);
         }
         ctx.stroke();
       }
 
       // Individual integers, once there is room for them to read as units.
       if (step > 1 && perUnit > 11) {
-        ctx.fillStyle = hsl(hue, 30, 70, 0.13);
+        ctx.fillStyle = hsl(hue, 30, 70, 0.16);
         for (let v = Math.ceil(lo); v <= hi; v += 1) {
-          ctx.fillRect(Math.round(sx(v)), axisY + 2, 1, 1.5);
+          ctx.fillRect(Math.round(sx(v)), axisY + 2, 1, 2);
         }
       }
 
-      ctx.strokeStyle = hsl(hue, 34, 74, 0.42);
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = hsl(hue, 34, 74, 0.46);
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
       for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
         const x = Math.round(sx(v)) + 0.5;
         ctx.moveTo(x, axisY);
-        ctx.lineTo(x, axisY + (v === 0 ? 15 : 10));
+        ctx.lineTo(x, axisY + tick * (v === 0 ? 1.5 : 1));
       }
       ctx.stroke();
 
       ctx.font = `500 ${labelSize}px ${MONO}`;
-      setTracking(ctx, '0.06em');
-      const inset = labelSize * 2.6;
+      setTracking(ctx, '0.04em');
+      const inset = labelRoom * 0.5;
       for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
         const x = sx(v);
         // A number half off the edge is worse than no number.
         if (x < inset || x > width - inset) continue;
         const n = Math.round(v);
-        ctx.fillStyle = n === 0 ? hsl(hue, 60, 82, 0.92) : hsl(hue, 24, 72, 0.5);
-        ctx.fillText(plain(n), x, axisY + (n === 0 ? 19 : 14));
+        ctx.fillStyle = n === 0 ? hsl(hue, 62, 86, 0.95) : hsl(hue, 26, 80, 0.78);
+        ctx.fillText(plain(n), x, axisY + tick * (n === 0 ? 1.7 : 1.2));
       }
       setTracking(ctx, '0em');
 
@@ -532,7 +542,7 @@ export const createNumberLine: SketchFactory = (): Sketch => {
       for (const f of flashes) {
         const t = f.age / 1.5;
         const a = (1 - t) * (1 - t);
-        ctx.font = `600 ${clamp(width * 0.026, 15, 34)}px ${MONO}`;
+        ctx.font = `600 ${Math.max(labelSize * 1.1, width * 0.026)}px ${MONO}`;
         ctx.fillStyle = hsl(f.hue, 95, 74, a);
         ctx.fillText(signed(f.delta), sx(f.v), axisY - ballR * 2.4 - t * height * 0.22);
       }
@@ -545,12 +555,16 @@ export const createNumberLine: SketchFactory = (): Sketch => {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
-      ctx.font = `500 9.5px ${MONO}`;
+      // Everything in the corner is sized off the same knob as the axis, so
+      // one control takes the whole thing from dense to across-the-room.
+      const smallSize = clamp(labelSize * 0.4, 10, 17);
+      const bigSize = clamp(labelSize * 1.9, 30, Math.min(width * 0.2, height * 0.24));
+
+      ctx.font = `500 ${smallSize * 0.92}px ${MONO}`;
       setTracking(ctx, '0.3em');
       ctx.fillStyle = '#64748b';
       ctx.fillText(airborne ? 'IN FLIGHT' : goalGap > 0 ? 'SETTLING' : 'AT REST', pad, top);
 
-      const bigSize = clamp(width * 0.058, 30, 74);
       ctx.font = `200 ${bigSize}px ${MONO}`;
       setTracking(ctx, '0.02em');
       ctx.fillStyle = '#e6ecff';
@@ -558,18 +572,19 @@ export const createNumberLine: SketchFactory = (): Sketch => {
         value === target
           ? plain(target)
           : `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)}`;
-      ctx.fillText(shown, pad, top + 16);
+      ctx.fillText(shown, pad, top + smallSize * 1.6);
 
-      ctx.font = `500 10.5px ${MONO}`;
+      ctx.font = `500 ${smallSize}px ${MONO}`;
       setTracking(ctx, '0.18em');
       ctx.fillStyle = hsl(hue, 45, 68, 0.85);
       const tapeLine = tape.length > 0 ? tape.map(signed).join(' ') : 'HIT A PAD';
-      ctx.fillText(tapeLine, pad, top + 24 + bigSize);
+      const tapeY = top + smallSize * 2.4 + bigSize;
+      ctx.fillText(tapeLine, pad, tapeY);
       ctx.fillStyle = '#4a5570';
       ctx.fillText(
         `WINDOW ${plain(Math.round(lo))} → ${plain(Math.round(hi))}`,
         pad,
-        top + 42 + bigSize,
+        tapeY + smallSize * 1.7,
       );
       setTracking(ctx, '0em');
 
