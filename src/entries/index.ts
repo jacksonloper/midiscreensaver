@@ -1,4 +1,5 @@
 import { chromaRain } from './chroma-rain';
+import { numberLine } from './number-line';
 import { orbitalChoir } from './orbital-choir';
 import { pulseLattice } from './pulse-lattice';
 import { rightNow } from './right-now';
@@ -6,9 +7,14 @@ import { strandWeave } from './strand-weave';
 import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
-export const entries: Entry[] = [rightNow, chromaRain, strandWeave, orbitalChoir, pulseLattice].sort(
-  (a, b) => b.date.localeCompare(a.date),
-);
+export const entries: Entry[] = [
+  numberLine,
+  rightNow,
+  chromaRain,
+  strandWeave,
+  orbitalChoir,
+  pulseLattice,
+].sort((a, b) => b.date.localeCompare(a.date));
 
 export const entryBySlug = (slug: string | undefined): Entry | undefined =>
   entries.find((e) => e.slug === slug);
