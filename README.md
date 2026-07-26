@@ -92,7 +92,7 @@ keeps the deploy build lean.
 
 | Post | What the pads do |
 | --- | --- |
-| Zeno's Adding Machine | Add ±1, ±5, ±10 or ±25 to a running total the ball has to hop to |
+| Zeno's Adding Machine | Add ±1, ±2, ±5 or ±10 to a running total the ball has to hop to |
 | Right Now, To Scale | Fly the camera to any of the eight planets, solved live from Keplerian elements |
 | Pulse Lattice | Drop expanding wavefronts into a grid of dots from eight anchors |
 | Orbital Choir | Kick one of eight harmonically-spaced orbiting bodies outward |
