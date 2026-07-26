@@ -3,9 +3,9 @@ import { createAreaModel } from './sketch';
 
 export const areaModel: Entry = {
   slug: 'area-model',
-  title: 'Sixteen Little Rectangles',
+  title: 'Multiplication as a rectangle',
   date: '2026-07-26',
-  dek: 'Four knobs are the terms of one factor and four are the terms of the other; the screen is the rectangle they multiply out to, cut into every partial product.',
+  dek: 'Eight knobs set eight small numbers. The screen shows the rectangle they multiply out to, cut into its sixteen parts.',
   tags: ['arithmetic', 'multiplication', 'canvas'],
   knobs: [
     { label: 'x₁', default: 2 / 3 },
@@ -18,95 +18,64 @@ export const areaModel: Entry = {
     { label: 'y₄', default: 1 / 3 },
   ],
   pads: [
-    { label: 'Cycle the palette' },
-    { label: 'Unit grid on or off' },
-    { label: 'Partial-product labels on or off' },
-    { label: 'Blocks flush, split or exploded' },
+    { label: 'Palette' },
+    { label: 'Unit grid' },
+    { label: 'Block labels' },
+    { label: 'Spacing: flush, split, exploded' },
     { label: 'Fill: solid, dots, hatch, outline' },
-    { label: 'Glow on or off' },
-    { label: 'Sweep the sixteen products, one at a time' },
-    { label: 'Readout: full, product, bare' },
+    { label: 'Glow' },
+    { label: 'Sweep the blocks and add them up' },
+    { label: 'Readout: full, product, none' },
   ],
   factory: createAreaModel,
   body: (
     <>
+      <h2>What to do</h2>
       <p>
-        Eight knobs, eight numbers, each one of 0, 1, 2 or 3. The first four add up to the width of a
-        rectangle and the last four add up to its height, and the rectangle is the product. That is
-        the entire post. There is no simulation running underneath and nothing decays over time —
-        turn a knob and the shape is immediately the answer to a different multiplication.
+        Knobs 1 to 4 set four numbers, x₁ to x₄. Knobs 5 to 8 set y₁ to y₄. Each knob gives 0, 1, 2
+        or 3, and snaps to whole numbers, so there is nothing in between.
       </p>
       <p>
-        The knobs snap. There is no 2.4 to be had: the position rounds to a whole number and the
-        block grows or shrinks to match, so sweeping <strong>x₂</strong> from end to end feels like
-        four detents rather than a slide. Multiplication of whole numbers is a discrete business and
-        it seemed dishonest to let the picture pretend otherwise.
-      </p>
-      <p>
-        Because each side is a sum of four terms, the rectangle is cut into sixteen blocks — every
-        x term against every y term. Each block is a partial product, and each is labelled with the
-        multiplication it stands for and the number of unit squares it contains. The blocks are the
-        distributive law. Add up all sixteen and you get the same number as multiplying the two totals,
-        not as a fact to be memorised but as an observation about a rectangle you cut into pieces and
-        did not otherwise disturb.
+        The rectangle is x₁ + x₂ + x₃ + x₄ wide and y₁ + y₂ + y₃ + y₄ tall. Its area is the product
+        of those two sums, and that is the big number on the right.
       </p>
 
-      <h2>Why the board never changes size</h2>
+      <h2>The sixteen blocks</h2>
       <p>
-        The dotted square behind everything is twelve by twelve, and it is always twelve by twelve.
-        Four terms at three apiece is the largest either side can be, so 144 is as big as the product
-        gets and every rectangle you can make is some corner of that same board. Nothing rescales:
-        one unit square is one unit square whatever the knobs say.
+        The rectangle is divided into one block for each pair of terms: the block in column 2, row 3
+        is x₂ × y₃. There are four terms a side, so there are sixteen blocks, and each is labelled
+        with its own multiplication and answer.
       </p>
       <p>
-        This is the decision the whole thing rests on. It would have been easy to zoom the rectangle
-        to fill the frame — it would look better, most of the time — but then 6 × 6 and 12 × 12 would
-        be the same picture, and the point is that one of them is four times the other. Keeping the
-        scale fixed means the growth is the readout. Take <strong>x₃</strong> from 1 to 2 and a
-        column's worth of area appears across the full height of the rectangle, which is a much more
-        useful thing to watch than a number in the corner changing.
+        Add up the sixteen and you get the same number as multiplying the two sums. Pad 7 does this
+        for you, one block at a time, keeping a running total.
       </p>
       <p>
-        Terms sitting at zero do not disappear quietly. Their labels stay in the gutter, dimmed, with
-        no block behind them, so you can see which of the four you have switched off. Multiplying by
-        zero deletes a whole column of partial products in one turn, and it is worth being able to
-        watch that happen rather than being told about it.
+        Setting a term to 0 removes its column or row. Its label stays in the margin, so you can see
+        which one you turned off.
       </p>
 
-      <h2>The pads do not do arithmetic</h2>
+      <h2>The grid behind it</h2>
       <p>
-        Every pad is styling. The number is in the knobs and only in the knobs — hit all eight pads in
-        any order and the product is the number it was before. What they change is how much of the
-        structure the picture is showing at once, which turns out to matter more than it sounds.
+        The dotted grid is 12 by 12 and never changes size. Four terms of 3 is the largest either
+        side can be, so 144 squares is the largest rectangle available.
       </p>
       <p>
-        <strong>Unit grid</strong> rules every block into single squares, at which point the rectangle
-        stops being an area and becomes something you could count if you had the afternoon.{' '}
-        <strong>Fill</strong> goes further: on <em>dots</em>, each block draws one dot per unit square,
-        so a 3 × 2 block is unmistakably six of something. <em>Hatch</em> and <em>outline</em> pull the
-        colour back out when the sixteen labels are what you want to read.
+        Nothing zooms to fit: one unit square is the same size whatever the knobs say. Double both
+        sums and the rectangle gets four times bigger on screen.
+      </p>
+
+      <h2>The pads</h2>
+      <p>
+        The pads change how the picture is drawn and nothing else; the product comes from the knobs
+        alone. All eight are listed with the controls, but two are worth trying first. Pad 5 set to{' '}
+        <em>dots</em> draws one dot per unit square, so each block is something you can count. Pad 7
+        walks through the blocks in order and adds them up as it goes.
       </p>
       <p>
-        <strong>Blocks</strong> is the one to reach for first. Flush, the sixteen pieces make one solid
-        rectangle. Split, thin lanes open between them. Exploded, they separate properly and you can
-        see there is nothing between the pieces — the rectangle really is those sixteen products and
-        nothing else. The board grows the gaps out of its own margin, so the picture never outruns the
-        frame however far apart the blocks are pushed.
-      </p>
-      <p>
-        <strong>Sweep</strong> walks the highlight across all sixteen in reading order, naming each
-        product and keeping a running total in the panel, then starts again from the top-left. It is
-        the slow version of the argument the picture makes all at once: sixteen small multiplications,
-        added up, are one big one. Left running it is also the most screensaver-ish this blog gets.
-      </p>
-      <p>
-        <strong>Palette</strong> cycles four ways of colouring the same sixteen blocks, and they are
-        not interchangeable. <em>Columns</em> gives each x term a hue and each y term a lightness, so
-        the grid reads as a multiplication table. <em>Diagonals</em> colours by x + y, which makes the
-        symmetry between x₂y₃ and x₃y₂ obvious. <em>Magnitude</em> ignores position entirely and
-        colours by the size of the partial product, turning the rectangle into a heat map where the
-        3 × 3 corners glow and the small pieces go cold. Same sixteen numbers, three different things
-        to notice about them.
+        Pad 1 cycles four colourings. <em>Columns</em> gives each x term its own colour,{' '}
+        <em>diagonals</em> colours by x + y, and <em>magnitude</em> colours by the size of the block
+        rather than by where it sits.
       </p>
     </>
   ),
