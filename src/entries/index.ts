@@ -1,3 +1,4 @@
+import { areaModel } from './area-model';
 import { chromaRain } from './chroma-rain';
 import { numberLine } from './number-line';
 import { orbitalChoir } from './orbital-choir';
@@ -8,6 +9,7 @@ import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
 export const entries: Entry[] = [
+  areaModel,
   numberLine,
   rightNow,
   chromaRain,
