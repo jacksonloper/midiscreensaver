@@ -28,16 +28,16 @@ export function Home() {
             />
           ) : null}
           <div className="hero-copy">
-            <h1>Eight pads, one screensaver at a time.</h1>
+            <h1>Screensavers you play.</h1>
             <p>
-              A blog where every post is a thing that moves, and the way you read it is by playing
-              it. Plug in an Akai LPD8 mk2, hit a pad, turn a knob. The post explains what you just
-              did.
+              Every post here is a screensaver running in your browser, with eight pads and eight
+              knobs wired to it. Use an Akai LPD8 mk2 or the controls on screen. Each post says what
+              its own knobs and pads do.
             </p>
             <div className="hero-actions">
               {featured ? (
                 <Link className="button" to={`/posts/${featured.slug}`}>
-                  Open {featured.title}
+                  Open the newest post
                 </Link>
               ) : null}
               <Link className="button is-quiet" to="/about">
@@ -49,7 +49,7 @@ export function Home() {
         {featured ? (
           <div className="hero-controller">
             <p className="hero-controller-note">
-              Live above: <strong>{featured.title}</strong> — try it right here.
+              Running above: <strong>{featured.title}</strong>. These controls drive it.
             </p>
             <ControllerPanel knobs={featured.knobs} pads={featured.pads} compact />
           </div>

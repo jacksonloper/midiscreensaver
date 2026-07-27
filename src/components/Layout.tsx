@@ -26,8 +26,8 @@ export function Layout() {
 
       <footer className="site-footer">
         <p>
-          Screensavers you play with an Akai LPD8 mk2. No controller? The pads on screen and the keys{' '}
-          <kbd>1</kbd>–<kbd>8</kbd> do the same job.
+          Screensavers you play with an Akai LPD8 mk2. Without one, use the pads on screen or the keys{' '}
+          <kbd>1</kbd>–<kbd>8</kbd>.
         </p>
       </footer>
     </div>
