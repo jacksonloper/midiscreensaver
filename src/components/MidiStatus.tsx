@@ -46,8 +46,8 @@ export function MidiStatus() {
 
         <p className="hint">
           An LPD8 mk2 in its first program sends pads on notes 36–43 and knobs on CC 70–77. If yours
-          has been reprogrammed, either set the base numbers here or leave adoption on and just play
-          — the first eight notes and first eight CCs it hears get claimed in order.
+          has been reprogrammed, set the base numbers here, or leave adoption on and play the pads in
+          order — the first eight notes and first eight CCs it hears are claimed as they arrive.
         </p>
 
         <div className="midi-form">

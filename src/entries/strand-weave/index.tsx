@@ -3,9 +3,9 @@ import { createStrandWeave } from './sketch';
 
 export const strandWeave: Entry = {
   slug: 'strand-weave',
-  title: 'Strand Weave',
+  title: 'Dye in a flow field',
   date: '2026-05-30',
-  dek: 'Fourteen hundred particles in a noise field, and eight taps that inject dye into it.',
+  dek: 'Fourteen hundred particles follow a noise field. Each pad injects coloured dye at one of eight sites.',
   tags: ['flow field', 'noise', 'particles'],
   knobs: [
     { label: 'Field scale', default: 0.3 },
@@ -24,29 +24,26 @@ export const strandWeave: Entry = {
   body: (
     <>
       <p>
-        A flow field is the cheapest way to make a computer look like it is drawing with intent. You
-        sample a smooth noise function at every particle's position, treat the value as an angle,
-        and push the particle that way. Do it fourteen hundred times a frame with a low-alpha stroke
-        and the accumulated paths turn into something that looks combed.
+        Fourteen hundred particles move through a noise field. Each frame, every particle samples a
+        smooth noise function at its own position, reads the value as an angle, and moves that way,
+        drawing a faint line as it goes. The combed look is those lines accumulating.
       </p>
       <p>
-        The pads inject dye. Eight sites sit on a circle, one per pad, and a hit sprays several dozen
-        fresh particles from that point with their own colour and their own outward momentum. The
-        interesting part is what happens next: injected particles do not immediately obey the field.
-        They blend toward it over about a third of a second, so a hard hit throws a coloured spike
-        straight across the weave before the field bends it back into line. That transition is the
-        whole reason <strong>Jet force</strong> is on a knob.
+        Each pad injects dye at one of eight sites around a circle: several dozen fresh particles with
+        their own colour and their own outward speed. They do not follow the field straight away —
+        they blend into it over about a third of a second, so a hard hit throws a coloured spike
+        across the weave before the field bends it into line. <strong>Jet force</strong> sets how far
+        that spike gets.
       </p>
       <p>
-        <strong>Field scale</strong> and <strong>Curl</strong> fight each other productively. A large
-        scale with high curl gives you tight vortices packed together; a small scale with low curl
-        gives long parallel rivers that take twenty seconds to cross the screen. Somewhere between
-        them is a setting where the field has both, and the dye pools in the slow parts.
+        <strong>Field scale</strong> and <strong>Curl</strong> pull against each other. A large scale
+        with high curl gives tight vortices packed together; a small scale with low curl gives long
+        parallel rivers that take twenty seconds to cross the screen. Between them is a setting where
+        the dye pools in the slow parts.
       </p>
       <p>
-        Particles are recycled, never created — the pool is fixed at fourteen hundred and a burst
-        overwrites the oldest ones. It keeps the frame budget flat no matter how hard you play, which
-        matters when the whole point is that you can play it hard.
+        The particle count is fixed. A burst overwrites the oldest particles rather than adding new
+        ones, so the frame rate holds up however hard you play.
       </p>
     </>
   ),

@@ -3,9 +3,9 @@ import { createPulseLattice } from './sketch';
 
 export const pulseLattice: Entry = {
   slug: 'pulse-lattice',
-  title: 'Pulse Lattice',
+  title: 'Waves through a grid of dots',
   date: '2026-03-02',
-  dek: 'A grid of dots that only knows one thing: how far it is from the edge of a wave.',
+  dek: 'Each pad drops an expanding ring into a grid of dots. Every dot asks how far it is from the nearest wavefront.',
   tags: ['grid', 'waves', 'first post'],
   knobs: [
     { label: 'Cell size', default: 0.45 },
@@ -24,30 +24,24 @@ export const pulseLattice: Entry = {
   body: (
     <>
       <p>
-        The first one had to be the simplest thing that still felt like something. Every dot in the
-        lattice asks one question each frame — <em>how far am I from the edge of a passing wave?</em>{' '}
-        — and answers it with brightness, size, and a small shove outward. There is no simulation
-        underneath. Nothing is conserved. The rings are just numbers growing at a constant rate, and
-        the picture is a distance function wearing a costume.
+        Each pad drops an expanding ring into the grid from its own anchor point. The anchors are
+        arranged like the pads themselves, so the bottom-left pad drops its ring into the bottom-left
+        of the screen, and a harder hit gives the ring more push.
       </p>
       <p>
-        Each of the eight pads owns an anchor point, laid out in the same four-by-two arrangement as
-        the pads themselves, so hitting the bottom-left pad drops a ring into the bottom-left of the
-        screen. Velocity matters: a hard hit makes a ring with more push behind it, and the dots lean
-        further out of line as the front goes by.
+        Every dot does one calculation per frame: how far it is from the edge of a passing wave. That
+        distance sets its brightness, its size, and how far it is shoved outward. Nothing is being
+        simulated — the rings are radii growing at a constant rate.
       </p>
       <p>
-        The knob I keep coming back to is <strong>Warp</strong>. At zero the lattice stays perfectly
-        rectilinear and the waves read as light passing over a grid. Past halfway the dots start
-        genuinely fleeing the wavefront, and the grid stops looking like a grid and starts looking
-        like fabric. Turn <strong>Band width</strong> up at the same time and single hits become slow
-        pressure waves rather than sharp rings.
+        <strong>Warp</strong> changes the character most. At zero the grid stays square and the waves
+        read as light passing over it. Past halfway the dots move out of the way of the wavefront and
+        the grid reads as fabric. Turn <strong>Band width</strong> up as well and a hit becomes a slow
+        pressure wave rather than a sharp ring.
       </p>
       <p>
-        Sustained chords are worth trying even though nothing here is tonal. Four pads at once puts
-        four expanding circles into the field, and where two wavefronts cross, the brightness adds.
-        Those intersections trace out hyperbolas as the rings grow, which is the sort of thing you
-        get for free when you build something out of distances.
+        Try several pads at once. Where two wavefronts cross, the brightness adds, and the crossing
+        points trace out hyperbolas as the rings grow.
       </p>
     </>
   ),

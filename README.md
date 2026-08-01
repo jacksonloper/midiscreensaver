@@ -1,11 +1,10 @@
 # eight pads
 
-A blog where every post is a screensaver you play with an **Akai Professional LPD8 mk2** — eight
-velocity-sensitive pads and eight knobs over USB. The prose explains what the thing on screen is
-doing; the controller lets you do it.
+Every post on this blog is a screensaver you play with an **Akai Professional LPD8 mk2** — eight
+velocity-sensitive pads and eight knobs over USB. Each post says what its own controls do.
 
-Built as a static single-page app: React + TypeScript + Vite, Canvas 2D, and the Web MIDI API. No
-animation libraries, no shaders, no backend.
+A static single-page app: React, TypeScript, Vite, Canvas 2D and the Web MIDI API. No animation
+libraries, no shaders, no backend.
 
 ## Running it
 
@@ -23,9 +22,9 @@ play them, and knobs drag or take arrow keys.
 
 ## Deploying
 
-`netlify.toml` has everything Netlify needs: `npm run build`, publish `dist`, and a `/* → /index.html
-200` rewrite so client-side routes survive a hard refresh (`public/_redirects` carries the same rule
-for good measure). Point Netlify at the repo and there is nothing else to configure.
+`netlify.toml` has what Netlify needs: `npm run build`, publish `dist`, and a `/* → /index.html 200`
+rewrite so client-side routes survive a hard refresh (`public/_redirects` carries the same rule).
+Point Netlify at the repo; there is nothing else to configure.
 
 ## How a post works
 
@@ -48,15 +47,15 @@ draw({ ctx, width, height, time, dt, midi }) {
 }
 ```
 
-A sketch never touches the MIDI layer, which is why a real pad, a click, and a keypress all behave
-identically. Knobs the reader has not touched report the post's own defaults, so every screensaver
-opens looking the way it was written to look.
+A sketch never touches the MIDI layer, so a real pad, a click and a keypress behave identically.
+Knobs the reader has not touched report the post's own defaults, so a post opens looking the way it
+was written.
 
 ## Talking to the controller
 
-`src/midi/engine.ts` holds all the MIDI state. It is deliberately not a React store — a knob sweep
-fires hundreds of messages a second, so sketches read mutable state once per frame and React views
-subscribe to a version counter published at most once per animation frame.
+`src/midi/engine.ts` holds all the MIDI state. It is not a React store: a knob sweep fires hundreds
+of messages a second, so sketches read mutable state once per frame and React views subscribe to a
+version counter published at most once per animation frame.
 
 Slot mapping (`SlotLearner`) handles three cases in order:
 
@@ -74,9 +73,9 @@ and message log" panel, which also shows every message coming in and where it wa
 ## Tests
 
 `tests/midi-mapping.mjs` stubs `navigator.requestMIDIAccess` with a fake LPD8 and drives the site
-through Playwright — the one part of this that cannot be checked by hand without the hardware in
-front of you. It covers the mk2 factory bank, an mk1-style bank arriving out of order, scattered
-layouts, CC-to-knob routing, and mapping persistence.
+through Playwright — the part that cannot be checked by hand without the hardware. It covers the mk2
+factory bank, an mk1-style bank arriving out of order, scattered layouts, CC-to-knob routing, and
+mapping persistence.
 
 ```bash
 npm run build
@@ -85,16 +84,17 @@ npx playwright@latest install chromium   # once
 node tests/midi-mapping.mjs              # CHROME_PATH=... to use an existing Chromium
 ```
 
-Playwright is intentionally not a dependency — it exists only for this script, and keeping it out
-keeps the deploy build lean.
+Playwright is not a dependency. This script is the only thing that uses it, and leaving it out
+keeps the deploy build small.
 
 ## The posts
 
 | Post | What the pads do |
 | --- | --- |
-| Zeno's Adding Machine | Add ±1, ±2, ±5 or ±10 to a running total the ball has to hop to |
-| Right Now, To Scale | Fly the camera to any of the eight planets, solved live from Keplerian elements |
-| Pulse Lattice | Drop expanding wavefronts into a grid of dots from eight anchors |
-| Orbital Choir | Kick one of eight harmonically-spaced orbiting bodies outward |
-| Strand Weave | Inject coloured dye into a noise flow field at eight sites |
-| Chroma Rain | Re-seed a band of falling glyphs, one alphabet per pad |
+| Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
+| Adding on a number line | Add or subtract 1, 2, 5 or 10 from the total the ball has to hop to |
+| The planets, right now | Fly the camera to any of the eight planets |
+| Waves through a grid of dots | Drop an expanding ring into the grid from one of eight anchors |
+| Eight orbits on a spring | Kick one of the eight orbiting bodies outward |
+| Dye in a flow field | Inject coloured dye into the field at one of eight sites |
+| Falling glyphs | Re-seed a band of glyphs, one alphabet per pad |

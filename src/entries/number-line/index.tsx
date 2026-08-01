@@ -5,9 +5,9 @@ const label = (d: number): string => (d < 0 ? `−${Math.abs(d)}` : `+${d}`);
 
 export const numberLine: Entry = {
   slug: 'number-line',
-  title: "Zeno's Adding Machine",
+  title: 'Adding on a number line',
   date: '2026-07-26',
-  dek: 'Eight pads add ±1, ±2, ±5 and ±10; a ball hops to the answer, and the axis redraws itself to fit.',
+  dek: 'Eight pads add or subtract 1, 2, 5 and 10. A ball hops to the new total and the axis rescales to fit.',
   tags: ['arithmetic', 'bouncing', 'canvas'],
   knobs: [
     { label: 'Hue', default: 0.1 },
@@ -23,91 +23,48 @@ export const numberLine: Entry = {
   factory: createNumberLine,
   body: (
     <>
+      <h2>What to do</h2>
       <p>
-        There is one number in this post. The pads change it by ±1, ±2, ±5 and ±10, and everything on
-        screen is a consequence of what that number currently is. The ball is where the number is.
-        The axis runs from zero to the ball. The tick spacing is whatever fits. Nothing else is being
-        kept track of.
+        Each pad changes one running total. The bottom row takes away 1, 2, 5 and 10; the top row
+        adds the same four amounts, so 10 sits directly above −10.
       </p>
       <p>
-        The pads are laid out the way the hardware already is: sign by row, magnitude by column.
-        Bottom row takes away, top row adds, and the two rows line up so 10 sits above −10. Once your
-        hands know that, you stop reading the labels and start playing the number, which is more or
-        less the whole point of putting arithmetic on a drum controller.
-      </p>
-      <p>
-        The steps are small and the labels are large on purpose. Somewhere around the fourth time I
-        watched the ball walk itself from 7 down past zero to −3, this stopped being a screensaver
-        and started being the number line I wish I had been shown at five: you press a thing, a
-        number changes by exactly that much, and the ball goes and stands where the answer is. Turn{' '}
-        <strong>Number size</strong> up if the reader is across the room, or small if you would
-        rather see more of the ruler at once.
+        The ball stands where the total is. The axis runs from zero to the ball, and the number the
+        ball is standing on is the answer.
       </p>
 
-      <h2>Why it takes so many hops</h2>
+      <h2>The hops</h2>
       <p>
-        The ball does not travel to the new total. It jumps a fixed <em>fraction</em> of the distance
-        still to go, lands, and jumps the same fraction of what is left — so at the default setting a
-        single hit of +10 becomes an arc of about seven, then two, then half a unit, each one shorter
-        and lower than the last, converging on the number in a run of decreasing bounces that never
-        quite gets there. The last sliver of a unit is walked in rather than hopped, because an
-        infinite series of bounces makes a lovely idea and a terrible readout.
+        The ball does not travel straight to the new total. It jumps a fixed fraction of the distance
+        left, lands, then jumps the same fraction of what remains, so one press of +10 becomes a run
+        of shrinking arcs. <strong>Hop reach</strong> is that fraction: high crosses the gap in two
+        strides, low takes a dozen. The last part of a unit is walked rather than hopped.
       </p>
       <p>
-        <strong>Hop reach</strong> is that fraction. Turn it up and the ball crosses in two big
-        strides; turn it down and it patters across the gap in a dozen small ones, taking noticeably
-        longer to arrive. It is the closest thing here to a difficulty setting.
+        How hard you hit matters. A hard hit pushes the fraction past 1, so the ball overshoots and
+        has to come back for the number from the other side. The total is the same either way.
       </p>
       <p>
-        Arc height is chosen from how far the hop looks <em>on screen</em>, not how many units it
-        covers. This matters more than it sounds: +10 out of a total of 12 is a leap across the whole
-        frame, and +10 out of 400 is a nudge. The same pad has to be able to mean both, so the ball
-        reads the pixels rather than the arithmetic and jumps accordingly.
-      </p>
-      <p>
-        Velocity buys reach and height, and can push the fraction past 1. Hit a pad hard enough and
-        the ball sails clean past the number it was aiming at, then has to come back for it in
-        smaller hops from the other side. The total is exact either way — a hard +5 is still five —
-        but the flight is a lot less dignified.
+        Arc height comes from the distance on screen rather than the number of units, so +10 out of a
+        total of 12 is a leap and +10 out of 400 is a nudge.
       </p>
 
-      <h2>The window is not a setting</h2>
+      <h2>The scale</h2>
       <p>
-        There is no zoom control, because there is nothing to decide: the axis runs from zero to
-        wherever the ball is, plus a margin. Every scale you see is the arithmetic asking for it. Hit
-        +10 ten times and the frame quietly opens out to a hundred; work your way back down and it
-        closes in again.
+        There is no zoom control. The axis always runs from zero to the ball plus a margin, and the
+        tick spacing steps through 1, 2, 5, 10, 20, 50 to suit. A total of 20 and a total of 200
+        therefore look much the same until you read the numbers.
       </p>
       <p>
-        Zooming out is fast and zooming back in is slow, which is not symmetry I would have chosen on
-        purpose — it is what stops a long jump outrunning the frame. The ball would otherwise leave
-        the right-hand edge on the way to a number the window has not heard about yet. As a fallback,
-        the window is nudged at the end of every frame to keep the ball inside it, so the rule can
-        never quite fail.
-      </p>
-      <p>
-        The side effect is my favourite thing about this one. Because the ball always sits at
-        roughly the same place on screen, and the ticks re-space themselves to 1, 2, 5, 10, 20, 50 as
-        needed, a total of 20 and a total of 200 look identical until you read the numbers underneath.
-        The picture stops being about position and starts being about scale.
+        Zooming out is quick and zooming back in is slow, so a long jump never outruns the frame.
       </p>
 
-      <h2>The knobs are all frosting</h2>
+      <h2>The knobs</h2>
       <p>
-        Every knob here is styling. <strong>Bounce</strong>, <strong>Tempo</strong> and{' '}
-        <strong>Squash</strong> set how the ball carries itself; <strong>Trail</strong> leaves a
-        fading ghost of the arc it just flew; <strong>Sparks</strong> controls the mess it makes on
-        landing; <strong>Hue</strong> rotates a palette that otherwise takes its colour from the last
-        pad you hit. None of them touch the number. Turn all eight to zero and the total still comes
-        out the same — it just arrives looking bored.
-      </p>
-      <p>
-        <strong>Number size</strong> is the one that does real work. It sets the type size for every
-        number on screen, and the tick spacing is then derived from how much room those labels need —
-        widest label times the digits it has, plus a gap — so the axis thins itself out as the numbers
-        grow rather than letting them collide. All the way up you get four or five enormous numbers
-        and a ball; all the way down, a finely ruled tape measure. It is the same axis either way, and
-        the labels never overlap at any setting.
+        The knobs only change how it looks; none of them changes the total.{' '}
+        <strong>Number size</strong> does the most work: it sets the type size, and the tick spacing
+        follows from how much room the labels need, so the axis thins out as the numbers grow instead
+        of letting them collide.
       </p>
     </>
   ),
