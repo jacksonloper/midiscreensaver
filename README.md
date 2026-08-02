@@ -91,6 +91,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
+| Rods, pins, and degrees of freedom | Pick one of eight linkages; hit the same pad again to switch assembly mode |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
 | Adding on a number line | Add or subtract 1, 2, 5 or 10 from the total the ball has to hop to |
 | The planets, right now | Fly the camera to any of the eight planets |

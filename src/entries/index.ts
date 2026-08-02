@@ -1,5 +1,6 @@
 import { areaModel } from './area-model';
 import { chromaRain } from './chroma-rain';
+import { linkageGallery } from './linkage-gallery';
 import { numberLine } from './number-line';
 import { orbitalChoir } from './orbital-choir';
 import { pulseLattice } from './pulse-lattice';
@@ -9,6 +10,7 @@ import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
 export const entries: Entry[] = [
+  linkageGallery,
   areaModel,
   numberLine,
   rightNow,
