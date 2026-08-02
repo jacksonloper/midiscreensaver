@@ -91,6 +91,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
+| Two cranks and the graph they can reach | Choose one of the four ways out of the next corner of K₅, or hand the walk over |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
 | Adding on a number line | Add or subtract 1, 2, 5 or 10 from the total the ball has to hop to |
 | The planets, right now | Fly the camera to any of the eight planets |
