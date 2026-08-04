@@ -5,6 +5,10 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# One function: the LINKS-10M row proxy, which declares its own /api route.
+[functions]
+  directory = "netlify/functions"
+
 # SPA fallback: every unknown path is served by the client-side router.
 [[redirects]]
   from = "/*"

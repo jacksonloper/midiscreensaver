@@ -4,7 +4,8 @@ Every post on this blog is a screensaver you play with an **Akai Professional LP
 velocity-sensitive pads and eight knobs over USB. Each post says what its own controls do.
 
 A static single-page app: React, TypeScript, Vite, Canvas 2D and the Web MIDI API. No animation
-libraries, no shaders, no backend.
+libraries, no shaders, and one small serverless function — a caching proxy in front of a public
+dataset API, which one post reads a row at a time.
 
 ## Running it
 
@@ -25,6 +26,11 @@ play them, and knobs drag or take arrow keys.
 `netlify.toml` has what Netlify needs: `npm run build`, publish `dist`, and a `/* → /index.html 200`
 rewrite so client-side routes survive a hard refresh (`public/_redirects` carries the same rule).
 Point Netlify at the repo; there is nothing else to configure.
+
+`netlify/functions/links-row.mjs` is deployed along with it, and serves `/api/links-row` — a cache,
+a retry loop and a rate limit in front of Hugging Face's dataset viewer, plus a fixed reply shape so
+a rename upstream is one edit rather than a broken post. It is optional: when it is not there, as in
+`vite dev`, the post talks to the dataset API directly.
 
 ## How a post works
 
@@ -87,10 +93,22 @@ node tests/midi-mapping.mjs              # CHROME_PATH=... to use an existing Ch
 Playwright is not a dependency. This script is the only thing that uses it, and leaving it out
 keeps the deploy build small.
 
+`tests/linkage-kinematics.mjs` checks the LINKS-10M solver against the dataset itself: it pulls
+random rows and asks whether the solved output joint lands on the target curve the row shipped, then
+covers tangent circles, mirrored assemblies, a mechanism that cannot go round, and malformed rows.
+It needs no browser, and esbuild comes along with Vite.
+
+```bash
+node tests/linkage-kinematics.mjs            # 12 random rows, live
+ROWS=40 node tests/linkage-kinematics.mjs    # more of them
+OFFLINE=1 node tests/linkage-kinematics.mjs  # bundled rows and edge cases only
+```
+
 ## The posts
 
 | Post | What the pads do |
 | --- | --- |
+| One linkage from ten million | Deal another mechanism, reverse or step the crank, trace a joint, flip an assembly branch |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
 | Adding on a number line | Add or subtract 1, 2, 5 or 10 from the total the ball has to hop to |
 | The planets, right now | Fly the camera to any of the eight planets |
