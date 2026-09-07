@@ -5,13 +5,13 @@ export const tinyPlanet: Entry = {
   slug: 'tiny-planet',
   title: 'A tiny planet with people on it',
   date: '2026-09-07',
-  dek: 'A world small enough to see at once: two poles, a day a few seconds long, and people standing on the outside.',
+  dek: 'A world small enough to see at once: two poles, a day a few seconds long, and people walking about on the outside of it.',
   tags: ['spheres', 'day and night', 'canvas'],
   knobs: [
     { label: 'Spin', default: 0.36 },
     { label: 'Tilt', default: 0.57 },
     { label: 'Sun', default: 0.08 },
-    { label: 'Sea level', default: 0.5 },
+    { label: 'People', default: 0.6 },
     { label: 'View', default: 0.48 },
     { label: 'Size', default: 0.6 },
     { label: 'Towns', default: 0.5 },
@@ -38,8 +38,13 @@ export const tinyPlanet: Entry = {
       </p>
       <p>
         Knob 5 lifts the camera from the equator up towards the north pole, which is the quickest
-        way to convince yourself the thing is a sphere and not a disc. Knob 6 makes it bigger. Knob 7
-        adds towns, knob 8 makes their buildings taller.
+        way to convince yourself the thing is a sphere and not a disc. Knob 6 makes it bigger.
+        Knob 7 adds towns, knob 8 makes their buildings taller.
+      </p>
+      <p>
+        Knob 4 is how big the people are. Wind it down and they are specks moving between the
+        houses; wind it up and they are giants standing over their own village. Nothing else
+        changes size with them, which is the point: it is the ratio you are setting, not a zoom.
       </p>
 
       <h2>The people are the point</h2>
@@ -56,6 +61,14 @@ export const tinyPlanet: Entry = {
         the same building in the middle of the disc is a small bright roof. Watch one town cross
         the face of the planet and you see it stand up, lie down and stand up again.
       </p>
+      <p>
+        Nobody stands still. Everyone ambles around their own village on a slow looping path that
+        never quite repeats, and their arms and legs swing along whichever way they are going.
+        That swing is a direction across the ground rather than a wiggle on the screen, so
+        somebody walking towards you gets shorter instead of wider, and somebody at the edge of
+        the disc walks along it in full view. They stride about in the daylight and shuffle at
+        night, so you can watch a whole town slow down as the dark reaches it.
+      </p>
 
       <h2>Day and night</h2>
       <p>
@@ -67,8 +80,8 @@ export const tinyPlanet: Entry = {
       </p>
       <p>
         Nobody is told whether it is night where they are; it falls out of which way they are
-        facing. Turn on the night lights and the windows come on in the buildings on the dark side, one
-        town at a time, as the planet carries them out of the sun.
+        facing. Turn on the night lights and the windows come on in the buildings on the dark
+        side, one town at a time, as the planet carries them out of the sun.
       </p>
       <p>
         Pad 8 picks somebody to follow. A ring appears over their head and the readout gives their
@@ -81,8 +94,9 @@ export const tinyPlanet: Entry = {
       <p>
         The axis is the dashed line through the middle. Where it comes out of the surface is a
         pole: <strong>N</strong> at the top of it, <strong>S</strong> at the bottom, each with an
-        ice cap around it, and a spike on whichever of the two is facing you. The half of the axis behind the planet is
-        hidden by the planet, which is a small thing that makes the picture read as solid.
+        ice cap around it, and a spike on whichever of the two is facing you. The half of the axis
+        behind the planet is hidden by the planet, which is a small thing that makes the picture
+        read as solid.
       </p>
       <p>
         Knob 2 leans the axis over. Knob 3 walks the sun around the planet's orbit — a year, not a

@@ -95,6 +95,8 @@ const cross = (a: Vec3, b: Vec3): Vec3 => ({
  */
 const eastAt = (n: Vec3): Vec3 => norm({ x: -n.z, y: 0, z: n.x });
 
+const ZERO: Vec3 = { x: 0, y: 0, z: 0 };
+
 const ink = (c: Ink, a = 1): string => hsl(c.h, c.s, c.l, a);
 
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
@@ -114,11 +116,21 @@ type Kind = 0 | 1 | 2;
 interface Thing {
   kind: Kind;
   town: number;
-  /** Unit vector in planet coordinates, before the planet has turned. */
+  /** Where it lives, in planet coordinates, before the planet has turned. */
   n: Vec3;
   east: Vec3;
+  /** The other tangent, so a walk can go any direction across the ground. */
+  north: Vec3;
   lat: number;
   lon: number;
+  /** Index into the walkers' arrays, or -1 for whatever stays put. */
+  walk: number;
+  /** How far from home this one strays, in radians, and how fast it doubles back. */
+  strayR: number;
+  strayA: number;
+  strayB: number;
+  strayP: number;
+  strayQ: number;
   /** Height above the ground, as a fraction of the planet's radius. */
   h: number;
   /** Half width, same units. Buildings only. */
@@ -150,6 +162,7 @@ interface Star {
 function buildThings(land: Continent[]): Thing[] {
   const rand = mulberry32(20260907);
   const things: Thing[] = [];
+  let walkers = 0;
 
   for (let town = 0; town < TOWN_COUNT; town++) {
     // Towns go on a continent rather than anywhere on the sphere: well inside
@@ -180,13 +193,24 @@ function buildThings(land: Continent[]): Thing[] {
         y: c.y + e.y * du + up.y * dv,
         z: c.z + e.z * du + up.z * dv,
       });
+      const east = eastAt(n);
+      const walker = kind === 0;
       things.push({
         kind,
         town,
         n,
-        east: eastAt(n),
+        east,
+        north: cross(n, east),
         lat: Math.asin(clamp(n.y, -1, 1)),
         lon: Math.atan2(n.z, n.x),
+        // Two out-of-step sways across the ground make a loop that never quite
+        // repeats — an amble round the village rather than a lap of a circle.
+        walk: walker ? walkers++ : -1,
+        strayR: walker ? spread * (0.5 + rand() * 0.7) : 0,
+        strayA: 0.5 + rand() * 0.5,
+        strayB: 0.31 + rand() * 0.4,
+        strayP: rand() * TAU,
+        strayQ: rand() * TAU,
         h,
         w,
         hue,
@@ -201,7 +225,8 @@ function buildThings(land: Continent[]): Thing[] {
     }
     const folk = 2 + Math.floor(rand() * 4);
     for (let i = 0; i < folk; i++) {
-      place(0, 0.055 + rand() * 0.022, 0, rand() * 360, NAMES[things.length % NAMES.length]);
+      const dressed = rand() < 0.55 ? 6 + rand() * 52 : 208 + rand() * 92;
+      place(0, 0.055 + rand() * 0.022, 0, dressed, NAMES[things.length % NAMES.length]);
     }
     const trees = Math.floor(rand() * 5);
     for (let i = 0; i < trees; i++) {
@@ -266,8 +291,24 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
   const capX = new Float64Array(CAP_SEG);
   const capY = new Float64Array(CAP_SEG);
 
+  // Where every walker has got to. Their own clock rather than the sketch's,
+  // because they slow down at night, so they cannot share one.
+  const walkT = new Float64Array(people.length);
+  const strideT = new Float64Array(people.length);
+  const walkAt = new Float64Array(people.length * 3);
+  const walkDir = new Float64Array(people.length * 3);
+
   /** Visible things, refilled and depth-sorted every frame. */
-  const shown: { thing: Thing; z: number; lit: number }[] = [];
+  const shown: {
+    thing: Thing;
+    /** Where it is standing this frame, in planet coordinates. */
+    at: Vec3;
+    /** Which way it is walking, in planet coordinates; zero for a fixture. */
+    dir: Vec3;
+    stride: number;
+    z: number;
+    lit: number;
+  }[] = [];
 
   let spin = 0;
   let world = 0;
@@ -281,7 +322,7 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
 
   let sTilt = 0;
   let sView = 0;
-  let sSea = 1;
+  let sFolk = 1;
   let sSky = 1;
   let sSize = 0;
   let started = false;
@@ -291,7 +332,7 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
 
   return {
     draw({ ctx, width, height, time, dt, midi }: DrawContext) {
-      const [kSpin, kTilt, kSun, kSea, kView, kSize, kCrowd, kSkyline] = midi.knobs;
+      const [kSpin, kTilt, kSun, kFolk, kView, kSize, kCrowd, kSkyline] = midi.knobs;
 
       /* ------------------------------------------------------------ pads */
 
@@ -357,7 +398,7 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       const tilt = range(kTilt, 0, 0.73);
       const sunPhase = range(kSun, 0, TAU);
       const view = range(kView, -0.16, 1.24);
-      const sea = range(kSea, 0.55, 1.45);
+      const folk = range(kFolk, 0.35, 1.9);
       const skyline = range(kSkyline, 0.45, 1.75);
       const size = range(kSize, 0.26, 0.52);
 
@@ -367,13 +408,13 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       if (started) {
         sTilt = approach(sTilt, tilt, 0.07, dt);
         sView = approach(sView, view, 0.07, dt);
-        sSea = approach(sSea, sea, 0.07, dt);
+        sFolk = approach(sFolk, folk, 0.07, dt);
         sSky = approach(sSky, skyline, 0.07, dt);
         sSize = approach(sSize, size, 0.07, dt);
       } else {
         sTilt = tilt;
         sView = view;
-        sSea = sea;
+        sFolk = folk;
         sSky = skyline;
         sSize = size;
         started = true;
@@ -596,7 +637,7 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       };
 
       const landStyle = ink(pal.land);
-      for (const c of continents) fillCap(c.n, c.radius * sSea, 0.2, c.phase, landStyle);
+      for (const c of continents) fillCap(c.n, c.radius, 0.2, c.phase, landStyle);
 
       if (caps) {
         const iceStyle = ink(pal.ice, 0.95);
@@ -714,24 +755,77 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       const styleW = STYLE_W[style];
       const sunSide = (n: Vec3): number => n.x * sun.x + n.y * sun.y + n.z * sun.z;
 
+      // Everybody takes a step, whichever side of the planet they are on, so
+      // nobody is standing exactly where you left them when they come back
+      // round. The sun in planet coordinates says whether it is day where each
+      // of them is: they amble about in the light and shuffle at night.
+      const sunHere = sphere(subsolarLat, subsolarLon);
+      for (let i = 0; i < people.length; i++) {
+        const p = people[i];
+        const t = walkT[i];
+        const du = p.strayR * Math.sin(p.strayA * t + p.strayP);
+        const dv = p.strayR * Math.sin(p.strayB * t + p.strayQ);
+        const at = norm({
+          x: p.n.x + p.east.x * du + p.north.x * dv,
+          y: p.n.y + p.east.y * du + p.north.y * dv,
+          z: p.n.z + p.east.z * du + p.north.z * dv,
+        });
+        walkAt[i * 3] = at.x;
+        walkAt[i * 3 + 1] = at.y;
+        walkAt[i * 3 + 2] = at.z;
+
+        const dU = p.strayR * p.strayA * Math.cos(p.strayA * t + p.strayP);
+        const dV = p.strayR * p.strayB * Math.cos(p.strayB * t + p.strayQ);
+        const dir = norm({
+          x: p.east.x * dU + p.north.x * dV,
+          y: p.east.y * dU + p.north.y * dV,
+          z: p.east.z * dU + p.north.z * dV,
+        });
+        walkDir[i * 3] = dir.x;
+        walkDir[i * 3 + 1] = dir.y;
+        walkDir[i * 3 + 2] = dir.z;
+
+        const day = clamp((at.x * sunHere.x + at.y * sunHere.y + at.z * sunHere.z + 0.07) / 0.2);
+        const pace = 0.5 + 1.7 * day;
+        walkT[i] += dt * pace;
+        // One stride per half a body length covered, so the legs keep up with
+        // whatever the speed and the size knob are doing.
+        const speed = Math.hypot(dU, dV) * pace;
+        strideT[i] += (dt * speed) / Math.max(0.006, p.h * sFolk * 0.42);
+      }
+
       shown.length = 0;
       for (const thing of things) {
         if (thing.town >= townsShown) continue;
         if (thing.kind === 1 && styleH === 0) continue;
-        const n = rotV(thing.n);
+        const w = thing.walk;
+        const at =
+          w < 0
+            ? thing.n
+            : { x: walkAt[w * 3], y: walkAt[w * 3 + 1], z: walkAt[w * 3 + 2] };
+        const n = rotV(at);
         if (n.z <= 0) continue;
-        shown.push({ thing, z: n.z, lit: sunSide(n) });
+        shown.push({
+          thing,
+          at,
+          dir:
+            w < 0
+              ? ZERO
+              : { x: walkDir[w * 3], y: walkDir[w * 3 + 1], z: walkDir[w * 3 + 2] },
+          stride: w < 0 ? 0 : Math.sin(strideT[w]),
+          z: n.z,
+          lit: sunSide(n),
+        });
       }
       shown.sort((a, b) => a.z - b.z);
 
-      const headR = Math.max(1.4, R * 0.013);
       const stroke = Math.max(1, R * 0.0055);
       const night = time * 3;
 
       for (const item of shown) {
         const t = item.thing;
-        const n = rotV(t.n);
-        const e = rotV(t.east);
+        const n = rotV(item.at);
+        const e = rotV(t.walk < 0 ? t.east : eastAt(item.at));
         const day = clamp((item.lit + 0.07) / 0.2, 0, 1);
         const fade = clamp(n.z / 0.035, 0, 1);
         const bx = cx + n.x * R;
@@ -895,28 +989,54 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
           continue;
         }
 
-        // A person: a line standing straight up out of the ground, so the
-        // projection foreshortens them all by itself.
-        const h = t.h;
-        const tx = cx + n.x * (1 + h) * R;
-        const ty = cy - n.y * (1 + h) * R;
-        const ax = cx + n.x * (1 + h * 0.62) * R;
-        const ay = cy - n.y * (1 + h * 0.62) * R;
-        const armX = e.x * h * 0.34 * R;
-        const armY = -e.y * h * 0.34 * R;
+        // A person: a figure standing straight up out of the ground, so the
+        // projection foreshortens them all by itself. Legs and arms swing
+        // along the way they are walking, which is the same trick: the swing
+        // is a real direction across the surface, not a screen-space wiggle.
+        const h = t.h * sFolk;
+        // Two tangents to hang a body off: the way they are walking, and
+        // across it, which is what keeps the legs apart when the stride is
+        // passing through nothing and they are momentarily standing.
+        const d = t.walk < 0 ? e : rotV(item.dir);
+        const side = cross(n, d);
+        const at = (rad: number, fore: number, wide: number): number =>
+          cx + (n.x * rad + d.x * fore + side.x * wide) * R;
+        const up = (rad: number, fore: number, wide: number): number =>
+          cy - (n.y * rad + d.y * fore + side.y * wide) * R;
+        const headX = at(1 + h, 0, 0);
+        const headY = up(1 + h, 0, 0);
+        const headR = Math.max(1.1, R * h * 0.088);
+
         ctx.globalAlpha = fade;
         ctx.lineCap = 'round';
-        ctx.lineWidth = stroke * 1.15;
+        ctx.lineWidth = clamp(R * h * 0.085, stroke * 0.85, R * 0.018);
         ctx.strokeStyle = hsl(t.hue, lerp(18, 62, day), lerp(26, 60, day));
         ctx.beginPath();
-        ctx.moveTo(bx, by);
-        ctx.lineTo(tx, ty);
-        ctx.moveTo(ax - armX, ay - armY);
-        ctx.lineTo(ax + armX, ay + armY);
+        if (Math.hypot(headX - bx, headY - by) < 7) {
+          // Too small, or too nearly overhead, for limbs to be anything but mush.
+          ctx.moveTo(bx, by);
+          ctx.lineTo(headX, headY);
+        } else {
+          const step = item.stride * 0.22 * h;
+          const reach = item.stride * 0.17 * h;
+          const hip = 0.44 * h;
+          const shoulder = 0.72 * h;
+          ctx.moveTo(at(1 + hip, 0, 0), up(1 + hip, 0, 0));
+          ctx.lineTo(at(1 + 0.94 * h, 0, 0), up(1 + 0.94 * h, 0, 0));
+          ctx.moveTo(at(1 + shoulder, 0, 0.1 * h), up(1 + shoulder, 0, 0.1 * h));
+          ctx.lineTo(at(1 + shoulder, 0, -0.1 * h), up(1 + shoulder, 0, -0.1 * h));
+          ctx.moveTo(at(1, step, 0.06 * h), up(1, step, 0.06 * h));
+          ctx.lineTo(at(1 + hip, 0, 0), up(1 + hip, 0, 0));
+          ctx.lineTo(at(1, -step, -0.06 * h), up(1, -step, -0.06 * h));
+          ctx.moveTo(at(1 + 0.5 * h, -reach, 0.13 * h), up(1 + 0.5 * h, -reach, 0.13 * h));
+          ctx.lineTo(at(1 + shoulder, 0, 0.1 * h), up(1 + shoulder, 0, 0.1 * h));
+          ctx.moveTo(at(1 + 0.5 * h, reach, -0.13 * h), up(1 + 0.5 * h, reach, -0.13 * h));
+          ctx.lineTo(at(1 + shoulder, 0, -0.1 * h), up(1 + shoulder, 0, -0.1 * h));
+        }
         ctx.stroke();
         ctx.fillStyle = hsl(t.hue, lerp(16, 48, day), lerp(30, 74, day));
         ctx.beginPath();
-        ctx.arc(tx, ty, headR, 0, TAU);
+        ctx.arc(headX, headY, headR, 0, TAU);
         ctx.fill();
         if (lamps && day < 0.4) {
           const g = ctx.createRadialGradient(bx, by, 0, bx, by, headR * 5);
@@ -1015,22 +1135,31 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       /* ----------------------------------------------------- the readout */
 
       const me = people[follow];
-      const meCam = rotV(me.n);
+      // Read their latitude and their clock off wherever they have walked to,
+      // not off the doorstep they started from.
+      const meHere: Vec3 = {
+        x: walkAt[me.walk * 3],
+        y: walkAt[me.walk * 3 + 1],
+        z: walkAt[me.walk * 3 + 2],
+      };
+      const meCam = rotV(meHere);
       const meLit = sunSide(meCam);
       const meVel = cross(axis, meCam);
       const meInto = -(meVel.x * sun.x + meVel.y * sun.y + meVel.z * sun.z);
       const meState =
         meLit > 0.12 ? 'DAYLIGHT' : meLit < -0.12 ? 'NIGHT' : meInto > 0 ? 'SUNRISE' : 'SUNSET';
-      const hours = (((me.lon - subsolarLon) / TAU) * 24 + 36) % 24;
+      const meLon = Math.atan2(meHere.z, meHere.x);
+      const hours = (((meLon - subsolarLon) / TAU) * 24 + 36) % 24;
       const clock = `${pad2(Math.floor(hours))}:${pad2(Math.floor((hours % 1) * 60))}`;
 
       if (meCam.z > 0) {
-        const mx = cx + meCam.x * (1 + me.h * 1.5) * R;
-        const my = cy - meCam.y * (1 + me.h * 1.5) * R;
+        const meH = me.h * sFolk;
+        const mx = cx + meCam.x * (1 + meH * 1.5) * R;
+        const my = cy - meCam.y * (1 + meH * 1.5) * R;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.lineWidth = Math.max(1, R * 0.004);
         ctx.beginPath();
-        ctx.arc(mx, my, headR * 2.6, 0, TAU);
+        ctx.arc(mx, my, Math.max(3, R * meH * 0.5), 0, TAU);
         ctx.stroke();
       }
 
@@ -1042,7 +1171,9 @@ export const createTinyPlanet: SketchFactory = (): Sketch => {
       ctx.fillStyle = 'rgba(196, 214, 236, 0.72)';
       ctx.font = `500 ${type * 0.72}px ${MONO}`;
       ctx.fillText(
-        `${me.name} · ${latText(me.lat * DEG)} · ${meCam.z > 0 ? meState : 'FAR SIDE'}`,
+        `${me.name} · ${latText(Math.asin(clamp(meHere.y, -1, 1)) * DEG)} · ${
+          meCam.z > 0 ? meState : 'FAR SIDE'
+        }`,
         left,
         y,
       );
