@@ -5,7 +5,7 @@ export const tinyPlanet: Entry = {
   slug: 'tiny-planet',
   title: 'A tiny planet with people on it',
   date: '2026-09-07',
-  dek: 'A world small enough to see at once: two poles, a day a few seconds long, and people walking about on the outside of it.',
+  dek: 'A whole world in one picture, and a knob that runs from standing among its people to a long way out in space.',
   tags: ['spheres', 'day and night', 'canvas'],
   knobs: [
     { label: 'Spin', default: 0.36 },
@@ -13,7 +13,7 @@ export const tinyPlanet: Entry = {
     { label: 'Sun', default: 0.08 },
     { label: 'People', default: 0.6 },
     { label: 'View', default: 0.48 },
-    { label: 'Size', default: 0.6 },
+    { label: 'Altitude', default: 0.46 },
     { label: 'Towns', default: 0.5 },
     { label: 'Skyline', default: 0.42 },
   ],
@@ -38,8 +38,9 @@ export const tinyPlanet: Entry = {
       </p>
       <p>
         Knob 5 lifts the camera from the equator up towards the north pole, which is the quickest
-        way to convince yourself the thing is a sphere and not a disc. Knob 6 makes it bigger.
-        Knob 7 adds towns, knob 8 makes their buildings taller.
+        way to convince yourself the thing is a sphere and not a disc. Knob 6 is how high up you
+        are; there is a section on it below. Knob 7 adds towns, knob 8 makes their buildings
+        taller.
       </p>
       <p>
         Knob 4 is how big the people are. Wind it down and they are specks moving between the
@@ -51,14 +52,13 @@ export const tinyPlanet: Entry = {
       <p>
         Everyone stands at right angles to the ground, so on a planet this small they all point
         different ways — outward, like pins in a cushion. Nothing about that is drawn as a special
-        case. Each person is a line from the surface to their head, and the picture is a flat
-        shadow of the sphere, so somebody at the edge of the disc is seen side-on at full height
-        and somebody in the middle is seen from directly overhead, which makes them a dot with a
-        head on it.
+        case. Each person is a figure standing on the surface, and the camera does the rest:
+        somebody at the edge of the world is seen side-on at full height, and somebody in the
+        middle of it is seen from directly overhead, which makes them a dot with a head on it.
       </p>
       <p>
         Their houses work the same way. A building at the edge is a tower sticking out sideways;
-        the same building in the middle of the disc is a small bright roof. Watch one town cross
+        the same building in the middle of the view is a small bright roof. Watch one town cross
         the face of the planet and you see it stand up, lie down and stand up again.
       </p>
       <p>
@@ -66,7 +66,7 @@ export const tinyPlanet: Entry = {
         never quite repeats, and their arms and legs swing along whichever way they are going.
         That swing is a direction across the ground rather than a wiggle on the screen, so
         somebody walking towards you gets shorter instead of wider, and somebody at the edge of
-        the disc walks along it in full view. They stride about in the daylight and shuffle at
+        the world walks along it in full view. They stride about in the daylight and shuffle at
         night, so you can watch a whole town slow down as the dark reaches it.
       </p>
 
@@ -88,6 +88,35 @@ export const tinyPlanet: Entry = {
         latitude and the time on their own clock — noon when they are directly under the sun,
         midnight when they are furthest from it. Keep following them once they go round the back
         and the clock keeps running.
+      </p>
+
+      <h2>Down to the ground</h2>
+      <p>
+        Knob 6 is a camera on a wire. All the way up, it hangs twenty-odd planet-radii out and the
+        world is a marble among the stars. All the way down, it is a metre or so above the grass,
+        standing a few paces from somebody, with the sea in the distance and the horizon bending
+        away on both sides.
+      </p>
+      <p>
+        It is one camera the whole way, not two pictures blended together. The planet is drawn
+        through a lens with a fixed field of view, so nothing is scaled to fit: it gets bigger
+        because you are closer. Which half of it you can see falls out of one number. From a
+        height <em>h</em> over a planet of radius 1, a point on the surface is over the horizon
+        as soon as it is further round than <em>1 / (1 + h)</em> — so up in space that is very
+        nearly a whole hemisphere, and down on the grass it is a patch a few paces wide, which is
+        the entire reason standing on a planet feels flat.
+      </p>
+      <p>
+        On the way down the camera tips up, from looking at the middle of the planet to looking a
+        little over the horizon, and it steers towards whoever you are following. Pad 8 therefore
+        does two things: up in space it moves a ring from one person to another, and on the way
+        down it chooses whose village you land in. Switch while you are low and the whole world
+        swings round underneath you.
+      </p>
+      <p>
+        The sun goes where it really is, so from the ground you only see it near sunrise and
+        sunset. Any other time of day it is behind you, over your shoulder, lighting the ground
+        and the walls of the houses without ever coming into frame.
       </p>
 
       <h2>Poles and seasons</h2>
