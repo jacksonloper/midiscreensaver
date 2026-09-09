@@ -1,5 +1,7 @@
 # eight pads
 
+Live at https://main--midiscreensaver.netlify.app/
+
 Every post on this blog is a screensaver you play with an **Akai Professional LPD8 mk2** — eight
 velocity-sensitive pads and eight knobs over USB. Each post says what its own controls do.
 
