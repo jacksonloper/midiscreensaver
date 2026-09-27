@@ -21,9 +21,9 @@ export const compassArithmetic: Entry = {
     { label: 'Construct x · y' },
     { label: 'Construct x ÷ y' },
     { label: 'Construct √(xy)' },
-    { label: 'Take turns: all three in a loop' },
+    { label: 'Take turns: pad 6 moves on to the next one' },
     { label: 'Next step, by hand' },
-    { label: 'Play from the start' },
+    { label: 'Play: start again, or the next one when taking turns' },
     { label: 'Labels' },
     { label: 'Palette: night, chalkboard, blueprint, ember' },
   ],
@@ -39,7 +39,8 @@ export const compassArithmetic: Entry = {
       </p>
       <p>
         Pads 1 to 3 pick the answer: x times y, x divided by y, or the square root of x times y.
-        Left alone, it builds all three in turn. The list on the right says what each step is, and
+        A finished figure stays on screen until you hit pad 6, which starts the next one; out of
+        the box that takes the three in turn. The list on the right says what each step is, and
         the three bars above it are the only lengths the compass is allowed to start from: 1, x and
         y.
       </p>
@@ -98,7 +99,7 @@ export const compassArithmetic: Entry = {
       <h2>The knobs and pads</h2>
       <p>
         Pad 5 stops the automatic drawing and moves one step each time you hit it, which is the
-        best way to follow along. Pad 6 goes back to playing on its own. Knob 3 opens or closes
+        best way to follow along. Pad 6 goes back to playing on its own, from the top. Knob 3 opens or closes
         the angle between the two lines; the answer does not move, and that is the point of the
         proof. Knob 6 lengthens every compass arc until they are whole circles.
       </p>

@@ -20,10 +20,6 @@ export const knobFor = (value: number): number => (value - MIN_VALUE) / (MAX_VAL
 export const CONSTRUCTIONS = ['x · y', 'x ÷ y', '√(xy)'];
 export const PALETTES = ['night', 'chalkboard', 'blueprint', 'ember'];
 
-/** Seconds the finished figure stays up before the next one starts. */
-const HOLD = 5;
-const FADE = 0.9;
-
 /* ------------------------------------------------------------ geometry */
 
 interface Vec {
@@ -403,7 +399,6 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
 
   /** How far through the construction we are, in steps. */
   let progress = 0;
-  let hold = 0;
 
   let scale = 0;
   let cx = 0;
@@ -415,7 +410,6 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
 
   const restart = (): void => {
     progress = 0;
-    hold = 0;
   };
 
   return {
@@ -456,7 +450,6 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
               target = Math.floor(progress) + 1;
             } else if (target >= 10) {
               progress = 0;
-              hold = 0;
               target = 1;
             } else {
               target += 1;
@@ -464,9 +457,12 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
             say(`step ${Math.min(target, 10)} of 10`);
             break;
           case 5:
+            // A finished figure stays up until this pad is hit. When taking
+            // turns, that is also what moves on to the next construction.
+            if (taking && progress >= 10) which = (which + 1) % CONSTRUCTIONS.length;
             manual = false;
             restart();
-            say('play from the start');
+            say(taking ? `play · ${CONSTRUCTIONS[which]}` : 'play from the start');
             break;
           case 6:
             labels = !labels;
@@ -496,17 +492,9 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
 
       if (manual) {
         progress = Math.min(target, progress + dt / secondsPerStep);
-      } else if (progress < total) {
-        progress = Math.min(total, progress + dt / secondsPerStep);
       } else {
-        hold += dt;
-        if (hold > HOLD + FADE) {
-          if (taking) which = (which + 1) % CONSTRUCTIONS.length;
-          progress = 0;
-          hold = 0;
-        }
+        progress = Math.min(total, progress + dt / secondsPerStep);
       }
-      const alpha = manual ? 1 : 1 - clamp((hold - HOLD) / FADE);
 
       /* ---------------------------------------------------------- layout */
 
@@ -587,7 +575,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
 
       // Once the answer is in, shade the two triangles whose likeness makes it
       // true — they are the whole argument.
-      const shade = clamp(progress - (total - 1)) * alpha;
+      const shade = clamp(progress - (total - 1));
       if (shade > 0) {
         figure.triangles.forEach((tri, i) => {
           ctx.beginPath();
@@ -620,14 +608,14 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
             ctx.lineTo(sx(end), sy(end));
             if (prim.kind === 'result') {
               ctx.save();
-              ctx.shadowColor = pal.accent(0.8 * alpha);
+              ctx.shadowColor = pal.accent(0.8);
               ctx.shadowBlur = 14;
-              ctx.strokeStyle = pal.accent(alpha);
+              ctx.strokeStyle = pal.accent(1);
               ctx.lineWidth = weight * 2.6 + 1.5;
               ctx.stroke();
               ctx.restore();
             } else {
-              ctx.strokeStyle = pal.ink(0.85 * alpha);
+              ctx.strokeStyle = pal.ink(0.85);
               ctx.lineWidth = weight;
               ctx.stroke();
             }
@@ -652,7 +640,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
             if (s) ctx.lineTo(sx(p), sy(p));
             else ctx.moveTo(sx(p), sy(p));
           }
-          ctx.strokeStyle = prim.fixed ? pal.ink(0.8 * alpha) : pal.arc(alpha);
+          ctx.strokeStyle = prim.fixed ? pal.ink(0.8) : pal.arc(1);
           ctx.lineWidth = prim.fixed ? weight : Math.max(0.8, weight * 0.8);
           ctx.stroke();
           if (live) tool = { kind: 'compass', c: prim.c, tip: add(prim.c, mul(dir(aEnd), prim.r)) };
@@ -724,7 +712,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       for (const mark of figure.marks) {
-        const a = clamp((progress - mark.step - 0.8) / 0.2) * alpha;
+        const a = clamp((progress - mark.step - 0.8) / 0.2);
         if (a <= 0) continue;
         const px = sx(mark.p);
         const py = sy(mark.p);
@@ -781,7 +769,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
       if (wide) {
         const px = plotX + plotW - panelW;
         const using = progress < total ? figure.steps[current].uses : undefined;
-        const answered = clamp(progress - (total - 1)) * alpha;
+        const answered = clamp(progress - (total - 1));
         const givens: [Given, string, number, (a: number) => string][] = [
           ['one', '1', 1, pal.one],
           ['x', 'x', xs, pal.x],
@@ -875,8 +863,8 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
             rows.push(row);
             for (const r of rows) {
               if (paint) {
-                ctx.fillStyle = now ? pal.accent(0.95 * alpha) : done ? pal.text : pal.dim;
-                ctx.globalAlpha = now ? 1 : done ? 0.85 * alpha : 0.55;
+                ctx.fillStyle = now ? pal.accent(0.95) : done ? pal.text : pal.dim;
+                ctx.globalAlpha = now ? 1 : done ? 0.85 : 0.55;
                 ctx.fillText(r, px, py);
                 ctx.globalAlpha = 1;
               }
@@ -896,7 +884,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
         const px = plotX + plotW / 2;
         const py = plotY + figH + type * 0.4;
         ctx.font = `500 ${type * 0.9}px ${MONO}`;
-        ctx.fillStyle = pal.accent(alpha);
+        ctx.fillStyle = pal.accent(1);
         const now =
           progress < total
             ? figure.steps[current].text
@@ -929,7 +917,7 @@ export const createCompassArithmetic: SketchFactory = (): Sketch => {
       }
 
       // A slow breath on O, so a finished figure still looks switched on.
-      ctx.fillStyle = pal.accent((0.12 + Math.sin(time * 1.3) * 0.08) * alpha);
+      ctx.fillStyle = pal.accent(0.12 + Math.sin(time * 1.3) * 0.08);
       ctx.beginPath();
       ctx.arc(cx, cy, 6 + weight * 2, 0, TAU);
       ctx.fill();
