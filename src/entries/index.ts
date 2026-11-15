@@ -9,12 +9,12 @@ import { rightNow } from './right-now';
 import { solveRewriting } from './solve-rewriting';
 import { strandWeave } from './strand-weave';
 import { tinyPlanet } from './tiny-planet';
-import { wordPaths } from './word-paths';
+import { oneTile } from './one-tile';
 import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
 export const entries: Entry[] = [
-  wordPaths,
+  oneTile,
   solveRewriting,
   bitRewriting,
   compassArithmetic,
