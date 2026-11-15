@@ -86,14 +86,21 @@ npx playwright@latest install chromium   # once
 node tests/midi-mapping.mjs              # CHROME_PATH=... to use an existing Chromium
 ```
 
-Playwright is not a dependency. This script is the only thing that uses it, and leaving it out
+`tests/rewrite-check.mjs` checks the algebra behind "Hiding a bit in algebra" and prints the
+success rates the post quotes. It needs nothing but Node 22.18 or newer:
+
+```bash
+node tests/rewrite-check.mjs             # SEEDS=200 for the numbers in the post
+```
+
+Playwright is not a dependency. The MIDI script is the only thing that uses it, and leaving it out
 keeps the deploy build small.
 
 ## The posts
 
 | Post | What the pads do |
 | --- | --- |
-| Growing a bit and cutting it back | Start from 0 or 1, step through the rewrites, skip to simplifying, and pick the order the simplifier cuts in |
+| Hiding a bit in algebra | Watch a generator hide a bit in a long expression, then pick which attacker tries to get it back, or play the planted path |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
 | A tiny planet with people on it | Change how the world is drawn — palette, grid, labels, ice caps, buildings, night lights, stars — and pick somebody to follow |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |

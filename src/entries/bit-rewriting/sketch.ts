@@ -1,15 +1,17 @@
 import type { DrawContext, Sketch, SketchFactory } from '../../screensaver/types';
 import { approach, clamp, hsl, range } from '../../screensaver/util';
 import {
-  GROW_RULES,
-  STRATEGIES,
-  makeRun,
-  resimplify,
-  size,
+  LEVELS,
+  edgeCounts,
+  evaluate,
+  makeInstance,
+  ruleText,
   tokens,
-  value,
-  type Run,
+  type Attack,
+  type Expr,
+  type Instance,
   type Token,
+  type Walk,
 } from './rewrite';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -20,13 +22,57 @@ const setTracking = (ctx: CanvasRenderingContext2D, v: string): void => {
 
 export const PALETTES = ['night', 'chalkboard', 'violet', 'ember'];
 
-/** Knob 1: how many rewrites the growth makes. */
-export const rewritesFor = (k: number): number => Math.round(range(clamp(k), 3, 60));
-export const knobForRewrites = (n: number): number => (n - 3) / 57;
-/** Knob 5: how many of the growth rules are switched on. */
-export const wildnessFor = (k: number): number => Math.round(range(clamp(k), 2, GROW_RULES.length));
-/** Knob 3: which of 64 runs. */
+/** Knob 1: the security parameter, how many times the generator hides something. */
+export const lambdaFor = (k: number): number => Math.round(range(clamp(k), 4, 40));
+export const knobForLambda = (n: number): number => (n - 4) / 36;
+/** Knob 5: which generator. */
+export const levelFor = (k: number): number => Math.min(LEVELS.length - 1, Math.floor(clamp(k) * LEVELS.length));
+export const knobForLevel = (level: number): number => (level + 0.5) / LEVELS.length;
+/** Knob 3: which of 64 instances. */
 export const seedFor = (k: number): number => Math.round(clamp(k) * 63);
+
+/* ----------------------------------------------------------------- acts */
+
+/** What is on screen: the generator at work, then each way back down from E. */
+const ACTS = ['grow', 'greedy', 'sorted', 'canonical', 'planted'] as const;
+type Act = (typeof ACTS)[number];
+
+const ACT_LABEL: Record<Act, string> = {
+  grow: 'generator · hiding the bit',
+  greedy: 'attacker 1 · downhill only',
+  sorted: 'attacker 2 · sort, then downhill',
+  canonical: 'attacker 3 · multiply everything out',
+  planted: 'with the key · the planted path',
+};
+
+const ACT_SHORT: Record<Act, string> = {
+  grow: 'generator',
+  greedy: 'downhill only',
+  sorted: 'sort, then downhill',
+  canonical: 'multiply everything out',
+  planted: 'the planted path',
+};
+
+const walkOf = (inst: Instance, act: Act): Walk => (act === 'grow' ? inst.grown : inst[act]);
+
+const commas = (n: number): string => n.toLocaleString('en-US');
+
+const verdict = (inst: Instance, act: Act): string => {
+  if (act === 'grow') return `this is E: ${inst.E.n} nodes, and all an attacker is given`;
+  const a = inst[act] as Attack;
+  const steps = commas(a.steps.length);
+  const end = a.frames[a.frames.length - 1].n;
+  if (act === 'planted') return `back at ${inst.bit} in ${steps} steps`;
+  if (a.outcome === 'reached') {
+    return `reached ${inst.bit} in ${steps} steps` + (a.peak > inst.E.n ? `, by way of ${commas(a.peak)} nodes` : '');
+  }
+  if (a.outcome === 'stuck') {
+    return a.steps.length === 0
+      ? 'stuck at once: nothing here makes E shorter'
+      : `stuck at ${end} nodes after ${steps} steps`;
+  }
+  return `gave up at ${steps} steps, holding ${commas(end)} nodes`;
+};
 
 /* ------------------------------------------------------------- palettes */
 
@@ -34,50 +80,21 @@ interface Palette {
   bg: [string, string];
   text: string;
   dim: string;
-  grow: (a: number) => string;
-  shrink: (a: number) => string;
   op: string;
   paren: string;
+  /** Saturation and lightness shared by the five act colours. */
+  sat: number;
+  light: number;
 }
 
 const INKS: Palette[] = [
-  {
-    bg: [hsl(226, 30, 10), '#04050a'],
-    text: hsl(218, 30, 88),
-    dim: hsl(218, 14, 52),
-    grow: (a) => hsl(28, 96, 64, a),
-    shrink: (a) => hsl(168, 74, 60, a),
-    op: hsl(218, 26, 66),
-    paren: hsl(218, 14, 46),
-  },
-  {
-    bg: [hsl(152, 26, 15), hsl(160, 30, 9)],
-    text: hsl(60, 20, 93),
-    dim: hsl(140, 12, 58),
-    grow: (a) => hsl(350, 85, 78, a),
-    shrink: (a) => hsl(48, 100, 70, a),
-    op: hsl(60, 12, 76),
-    paren: hsl(140, 10, 56),
-  },
-  {
-    bg: [hsl(262, 34, 14), hsl(250, 40, 6)],
-    text: hsl(270, 40, 92),
-    dim: hsl(262, 16, 58),
-    grow: (a) => hsl(316, 86, 72, a),
-    shrink: (a) => hsl(52, 96, 66, a),
-    op: hsl(262, 26, 72),
-    paren: hsl(262, 16, 50),
-  },
-  {
-    bg: [hsl(18, 34, 11), hsl(8, 30, 5)],
-    text: hsl(32, 50, 88),
-    dim: hsl(24, 20, 52),
-    grow: (a) => hsl(4, 88, 66, a),
-    shrink: (a) => hsl(190, 64, 64, a),
-    op: hsl(30, 26, 68),
-    paren: hsl(24, 16, 46),
-  },
+  { bg: [hsl(226, 30, 10), '#04050a'], text: hsl(218, 30, 88), dim: hsl(218, 14, 54), op: hsl(218, 26, 66), paren: hsl(218, 14, 46), sat: 86, light: 66 },
+  { bg: [hsl(152, 26, 15), hsl(160, 30, 9)], text: hsl(60, 20, 93), dim: hsl(140, 12, 60), op: hsl(60, 12, 76), paren: hsl(140, 10, 56), sat: 80, light: 76 },
+  { bg: [hsl(262, 34, 14), hsl(250, 40, 6)], text: hsl(270, 40, 92), dim: hsl(262, 16, 60), op: hsl(262, 26, 72), paren: hsl(262, 16, 50), sat: 90, light: 72 },
+  { bg: [hsl(18, 34, 11), hsl(8, 30, 5)], text: hsl(32, 50, 88), dim: hsl(24, 20, 54), op: hsl(30, 26, 68), paren: hsl(24, 16, 46), sat: 84, light: 64 },
 ];
+
+const ACT_HUE: Record<Act, number> = { grow: 28, greedy: 350, sorted: 52, canonical: 268, planted: 158 };
 
 /* --------------------------------------------------------------- layout */
 
@@ -92,38 +109,32 @@ interface Laid {
 const OP_GAP = 0.42;
 
 /**
- * Break the expression into lines no wider than `maxW`. A line may only break
- * in front of an operator, so a continuation always starts with + or −, the
- * way it would be written by hand.
+ * Break the expression into lines no wider than `maxW`. A line only breaks in
+ * front of an operator, so a continuation starts with + or −, the way it
+ * would be written by hand. The type is monospaced, so widths are arithmetic.
  */
-const wrap = (
-  ctx: CanvasRenderingContext2D,
-  toks: Token[],
-  px: number,
-  maxW: number,
-): { laid: Laid[]; lines: number[] } => {
-  ctx.font = `400 ${px}px ${MONO}`;
-  const gap = px * OP_GAP;
-  const widths = toks.map((t) => ctx.measureText(t.text).width + (t.kind === 'op' ? gap * 2 : 0));
+const wrap = (toks: Token[], px: number, charW: number, maxW: number): { laid: Laid[]; lines: number[] } => {
+  const gap = px * OP_GAP * 2;
+  const cw = px * charW;
   const laid: Laid[] = [];
   const lines: number[] = [];
   let x = 0;
   let line = 0;
   let i = 0;
   while (i < toks.length) {
-    // The chunk is an operator plus whatever follows it up to the next one.
     let j = i + 1;
     while (j < toks.length && toks[j].kind !== 'op') j++;
     let w = 0;
-    for (let k = i; k < j; k++) w += widths[k];
+    for (let k = i; k < j; k++) w += toks[k].text.length * cw + (toks[k].kind === 'op' ? gap : 0);
     if (x > 0 && x + w > maxW && toks[i].kind === 'op') {
       lines.push(x);
       x = 0;
       line++;
     }
     for (let k = i; k < j; k++) {
-      laid.push({ tok: toks[k], x, line, w: widths[k] });
-      x += widths[k];
+      const tw = toks[k].text.length * cw + (toks[k].kind === 'op' ? gap : 0);
+      laid.push({ tok: toks[k], x, line, w: tw });
+      x += tw;
     }
     i = j;
   }
@@ -131,33 +142,56 @@ const wrap = (
   return { laid, lines };
 };
 
+/** One walk as a polyline of (step, size), thinned to what a log-scaled axis can show. */
+const thin = (walk: Walk, maxSteps: number): { i: number; n: number }[] => {
+  const out: { i: number; n: number }[] = [];
+  let bucket = -1;
+  walk.frames.forEach((f, i) => {
+    const b = Math.floor((Math.log1p(i) / Math.log1p(maxSteps)) * 600);
+    if (b !== bucket || i === walk.frames.length - 1) {
+      out.push({ i, n: f.n });
+      bucket = b;
+    } else if (f.n > out[out.length - 1].n) out[out.length - 1] = { i, n: f.n };
+  });
+  return out;
+};
+
 /* --------------------------------------------------------------- sketch */
 
 /**
- * A single bit, grown into a long expression by rewrites that never change
- * its value, and then cut back down to the same bit one rewrite at a time.
- * Every frame shows one expression and, lit up, the subterm the next rule is
- * about to replace, or the one it has just put in.
+ * One instance of the hiding game at a time. The generator walks uphill from
+ * a bit to a long expression E; three attackers who are given only E try to
+ * walk back down; then the generator's own walk is played backwards. The
+ * graph underneath is the size of the expression along each walk.
  */
 export const createBitRewriting: SketchFactory = (): Sketch => {
-  let bit: 0 | 1 = 1;
   let runs = 0;
-  let strategy = 0;
-  let names = true;
-  let palette = 0;
   let manual = false;
   let target = 0;
 
-  /** Steps through the run so far; frame k sits at progress k. */
+  let act: Act = 'grow';
+  /** Steps through the current act's walk; frame k sits at progress k. */
   let progress = 0;
-  /** Time spent at the end of a run, before the next one starts. */
+  /** Time spent sitting at the end of the current act. */
   let rest = 0;
-  /** Time spent at the longest expression, before simplifying starts. */
-  let peak = 0;
 
-  let run: Run | null = null;
+  let inst: Instance | null = null;
   let key = '';
+  let curves: Partial<Record<Act, { i: number; n: number }[]>> = {};
+  let maxSteps = 1;
+  let maxSize = 2;
+
   let fontPx = 0;
+  let charW = 0;
+  let lastLevel = -1;
+  let lastPalette = -1;
+
+  // Small caches, each keyed on the expression object now on screen.
+  let tokFor: Expr | null = null;
+  let tokHot = '';
+  let toks: Token[] = [];
+  const valueOf = new WeakMap<Expr, number>();
+  const edgesOf = new WeakMap<Expr, { down: number; level: number; up: number }>();
 
   let padFlash = 0;
   let toast = '';
@@ -168,136 +202,110 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
     toastAge = 0;
   };
 
+  const startAct = (next: Act): void => {
+    act = next;
+    progress = 0;
+    target = 0;
+    rest = 0;
+  };
+
+  const nextAct = (): void => {
+    const i = ACTS.indexOf(act);
+    if (i === ACTS.length - 1) runs++;
+    startAct(ACTS[(i + 1) % ACTS.length]);
+  };
+
   return {
     draw({ ctx, width, height, dt, midi }: DrawContext) {
-      const [kRewrites, kPace, kSeed, kType, kWild, kGlow, kHold, kGraph] = midi.knobs;
+      const [kLambda, kPace, kSeed, kType, kLevel, kPalette, kHold, kGraph] = midi.knobs;
 
       /* ------------------------------------------------------ controls */
 
       for (const hit of midi.hits) {
-        switch (hit.pad) {
-          case 0:
-          case 1:
-            bit = hit.pad as 0 | 1;
-            progress = 0;
-            rest = 0;
-            peak = 0;
-            manual = false;
-            say(`start from ${bit}`);
-            break;
-          case 2:
-            if (!manual) {
-              manual = true;
-              target = Math.floor(progress) + 1;
-            } else target += 1;
-            say('one step at a time');
-            break;
-          case 3:
-            manual = false;
-            say('play');
-            break;
-          case 4:
-            if (run && progress < run.grown) {
-              progress = run.grown;
-              target = run.grown;
-              peak = 99;
-              say('simplify now');
-            }
-            break;
-          case 5:
-            strategy = (strategy + 1) % STRATEGIES.length;
-            say(`strategy · ${STRATEGIES[strategy]}`);
-            break;
-          case 6:
-            names = !names;
-            say(`rule list · ${names ? 'on' : 'off'}`);
-            break;
-          default:
-            palette = (palette + 1) % PALETTES.length;
-            say(`palette · ${PALETTES[palette]}`);
-            break;
+        if (hit.pad < 5) {
+          startAct(ACTS[hit.pad]);
+          manual = false;
+          say(ACT_SHORT[ACTS[hit.pad]]);
+        } else if (hit.pad === 5) {
+          if (!manual) {
+            manual = true;
+            target = Math.floor(progress) + 1;
+          } else target += 1;
+          say('one step at a time');
+        } else if (hit.pad === 6) {
+          manual = false;
+          say('play');
+        } else {
+          runs++;
+          startAct('grow');
+          manual = false;
+          say('new instance');
         }
         padFlash = 0.5 + hit.velocity * 0.5;
       }
       padFlash = approach(padFlash, 0, 0.16, dt);
       toastAge += dt;
 
-      const spec = {
-        bit,
-        seed: (seedFor(kSeed) + runs * 17) % 997,
-        rewrites: rewritesFor(kRewrites),
-        wildness: wildnessFor(kWild),
-        strategy,
-      };
+      const level = levelFor(kLevel);
+      const palette = Math.min(PALETTES.length - 1, Math.floor(clamp(kPalette) * PALETTES.length));
+      if (lastLevel >= 0 && level !== lastLevel) say(`generator · ${LEVELS[level]}`);
+      if (lastPalette >= 0 && palette !== lastPalette) say(`palette · ${PALETTES[palette]}`);
+      lastLevel = level;
+      lastPalette = palette;
+
+      const spec = { level, lambda: lambdaFor(kLambda), seed: (seedFor(kSeed) + runs * 17) % 997 };
       const nextKey = JSON.stringify(spec);
       if (nextKey !== key) {
-        // The growth is shared between runs that differ only in length or
-        // strategy, so changing those mid-run keeps the place.
-        const prev = key ? (JSON.parse(key) as typeof spec) : null;
-        const onlyStrategy =
-          prev !== null &&
-          run !== null &&
-          JSON.stringify({ ...prev, strategy }) === nextKey &&
-          progress > run.grown;
-        run = onlyStrategy ? resimplify(run!, Math.floor(progress), strategy) : makeRun(spec);
+        const fresh = makeInstance(spec);
+        if (inst) startAct('grow');
+        inst = fresh;
         key = nextKey;
-        progress = Math.min(progress, run.frames.length - 1);
-        target = Math.min(target, run.frames.length - 1);
+        maxSteps = 1;
+        maxSize = 2;
+        for (const a of ACTS) {
+          if (a === 'grow') continue;
+          maxSteps = Math.max(maxSteps, fresh[a].steps.length);
+          maxSize = Math.max(maxSize, fresh[a].peak);
+        }
+        curves = {};
+        for (const a of ACTS) if (a !== 'grow') curves[a] = thin(fresh[a], maxSteps);
       }
-      const r = run!;
-      const last = r.frames.length - 1;
+      const I = inst!;
+      const walk = walkOf(I, act);
+      const last = walk.frames.length - 1;
 
-      const secondsPerStep = range(kPace, 2.6, 0.18);
-      const hold = range(kHold, 0.4, 6);
+      // A long walk is hurried along so that no act outstays its welcome.
+      const perSecond = Math.max(1 / range(kPace, 2.6, 0.18), last / 14);
+      const fast = perSecond > 7;
+      const hold = range(kHold, 0.8, 7);
 
       if (manual) {
-        if (target > last) {
-          // Stepping past the end starts the next run.
-          runs++;
-          bit = bit === 1 ? 0 : 1;
-          progress = 0;
-          target = 0;
-        } else progress = Math.min(target, progress + dt / secondsPerStep);
+        if (target > last) nextAct();
+        else progress = Math.min(target, progress + dt * perSecond);
       } else if (progress >= last) {
         rest += dt;
-        if (rest > hold) {
-          rest = 0;
-          peak = 0;
-          runs++;
-          bit = bit === 1 ? 0 : 1;
-          progress = 0;
-        }
-      } else if (progress >= r.grown && peak < hold * 0.6) {
-        peak += dt;
-      } else {
-        // Stop on the longest expression for a moment before cutting it down.
-        const cap = progress < r.grown ? r.grown : last;
-        progress = Math.min(cap, progress + dt / secondsPerStep);
-      }
+        if (rest > hold) nextAct();
+      } else progress = Math.min(last, progress + dt * perSecond);
 
       /* --------------------------------------------------------- state */
 
-      // Each step spends its first part pointing at the subterm that is about
-      // to go, and its second part on the subterm that replaced it.
-      const k = Math.min(Math.floor(progress), last);
+      const w2 = walkOf(I, act);
+      const end = w2.frames.length - 1;
+      const k = Math.min(Math.floor(progress), end);
       const f = progress - k;
-      const stepping = k < last && f > 0;
-      const step = stepping ? r.steps[k] : k > 0 ? r.steps[k - 1] : null;
-      const before = f < 0.5 || !stepping;
-      const shown = stepping && !before ? r.frames[k + 1] : r.frames[k];
-      let hotPath = null as number[] | null;
-      let heat = 0;
-      if (stepping) {
-        hotPath = r.steps[k].path;
-        heat = before ? clamp(f / 0.3) : clamp(1 - (f - 0.5) / 0.5);
-      }
-      const phase: 'grow' | 'shrink' | 'start' | 'end' =
-        k === last && !stepping ? 'end' : k === 0 && !stepping ? 'start' : step!.phase;
-      const hotColor = (stepping ? r.steps[k].phase : 'grow') === 'grow' ? 'grow' : 'shrink';
+      const stepping = k < end && (f > 0 || fast);
+      // A slow step points at the subterm about to go, then at what replaced
+      // it. A fast one just flashes where the rewrite landed.
+      const before = fast || f < 0.5 || !stepping;
+      const shown = stepping && !before ? w2.frames[k + 1] : w2.frames[k];
+      const hotPath = stepping ? w2.steps[k].path : null;
+      const heat = !stepping ? 0 : fast ? 0.75 : before ? clamp(f / 0.3) : clamp(1 - (f - 0.5) / 0.5);
+      const atEnd = k === end && !stepping;
 
       /* --------------------------------------------------------- frame */
 
       const pal = INKS[palette];
+      const ink = (a: Act, alpha = 1): string => hsl(ACT_HUE[a], pal.sat, pal.light, alpha);
       const margin = Math.min(width, height) * 0.045 + 6;
       // The page floats its controls over the top and bottom of the stage.
       const top = 30 + margin * 0.5;
@@ -315,15 +323,15 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, width, height);
 
-      const panelW = names ? Math.min(type * 22, plotW * 0.34) : 0;
-      const wide = names && plotW - panelW > plotH * 1.1;
+      const panelW = Math.min(type * 23, plotW * 0.36);
+      const wide = plotW - panelW > plotH * 1.05;
       const exprX = plotX;
       const exprW = wide ? plotW - panelW - type * 1.8 : plotW;
 
-      const graphH = kGraph < 0.03 ? 0 : range(kGraph, type * 2.2, plotH * 0.3);
+      const graphH = kGraph < 0.03 ? 0 : range(kGraph, type * 2.4, plotH * 0.42);
       const headH = type * 3.4;
       const exprY = plotY + headH;
-      const exprH = Math.max(40, plotH - headH - graphH - type * 1.6);
+      const exprH = Math.max(40, plotH - headH - (graphH > 0 ? graphH + type * 2.9 : 0));
 
       /* -------------------------------------------------------- header */
 
@@ -331,82 +339,82 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
       ctx.textBaseline = 'top';
       ctx.font = `500 ${type * 0.72}px ${MONO}`;
       setTracking(ctx, '0.2em');
-      const growN = r.grown;
-      const shrinkN = last - r.grown;
-      const head =
-        phase === 'start'
-          ? `a single bit · ${bit}`
-          : phase === 'end'
-            ? `back to the bit · ${growN} rewrites out, ${shrinkN} back`
-            : phase === 'grow'
-              ? `growing · rewrite ${Math.min(k + 1, growN)} of ${growN}`
-              : `simplifying · step ${Math.min(k + 1 - growN, shrinkN)} of ${shrinkN} · ${STRATEGIES[strategy]}`;
-      ctx.fillStyle =
-        phase === 'grow' ? pal.grow(0.95) : phase === 'shrink' ? pal.shrink(0.95) : pal.dim;
+      const head = `${ACT_LABEL[act]} · ${atEnd ? 'done' : `step ${commas(Math.min(k + 1, end))} of ${commas(end)}`}`;
+      ctx.fillStyle = ink(act, 0.95);
       ctx.fillText(head.toUpperCase(), exprX, plotY);
       const headW = ctx.measureText(head.toUpperCase()).width;
-      setTracking(ctx, '0em');
 
-      const ruleNow = stepping ? r.steps[k].rule : phase === 'end' ? `value ${bit}` : '';
-      if (ruleNow) {
-        ctx.font = `500 ${type * 1.15}px ${MONO}`;
-        ctx.fillStyle = stepping ? pal[hotColor](0.4 + 0.6 * clamp(heat * 1.5)) : pal.text;
-        ctx.fillText(ruleNow, exprX, plotY + type * 1.35);
+      let worth = valueOf.get(shown);
+      if (worth === undefined) {
+        worth = Math.round(evaluate(shown, I.env) * 1000) / 1000 + 0;
+        valueOf.set(shown, worth);
       }
-
-      // The invariant, top right: every expression on screen is worth this.
       ctx.textAlign = 'right';
-      ctx.font = `500 ${type * 0.72}px ${MONO}`;
-      setTracking(ctx, '0.2em');
       ctx.fillStyle = pal.dim;
-      const tally = `VALUE ${value(shown)} · ${size(shown)} NODES`;
-      if (headW + ctx.measureText(tally).width + type * 2 < exprW) {
-        ctx.fillText(tally, exprX + exprW, plotY);
-      }
+      const tally = `WORTH ${worth} · ${commas(shown.n)} NODES`;
+      if (headW + ctx.measureText(tally).width + type * 2 < exprW) ctx.fillText(tally, exprX + exprW, plotY);
       setTracking(ctx, '0em');
+
+      ctx.textAlign = 'left';
+      ctx.font = `500 ${type * 1.1}px ${MONO}`;
+      if (atEnd) {
+        ctx.fillStyle = pal.text;
+        ctx.fillText(verdict(I, act), exprX, plotY + type * 1.35);
+      } else if (stepping) {
+        ctx.fillStyle = ink(act, fast ? 0.9 : 0.4 + 0.6 * clamp(heat * 1.5));
+        let rule = ruleText(w2.steps[k], w2.frames[k], w2.frames[k + 1]);
+        while (rule.length > 8 && ctx.measureText(rule).width > exprW) rule = rule.slice(0, -2) + '…';
+        ctx.fillText(rule, exprX, plotY + type * 1.35);
+      }
 
       /* ---------------------------------------------------- expression */
 
-      const toks = tokens(shown, hotPath);
+      const hotKey = hotPath ? hotPath.join('') + (before ? 'b' : 'a') : '';
+      if (tokFor !== shown || tokHot !== hotKey) {
+        toks = tokens(shown, hotPath);
+        tokFor = shown;
+        tokHot = hotKey;
+      }
+      if (charW === 0) {
+        ctx.font = `400 100px ${MONO}`;
+        charW = ctx.measureText('0').width / 100;
+      }
       // The largest type that fits, but never so large the lone bit looks silly.
-      const fit = (px: number): boolean => {
-        const { lines } = wrap(ctx, toks, px, exprW);
+      const MIN_PX = 5.5;
+      const fits = (px: number): boolean => {
+        const { lines } = wrap(toks, px, charW, exprW);
         return lines.length * px * 1.5 <= exprH && Math.max(...lines) <= exprW;
       };
       let want = Math.min(type * 6, exprH / 1.5);
-      while (want > 7 && !fit(want)) want *= 0.93;
-      fontPx = fontPx === 0 ? want : approach(fontPx, want, 0.12, dt);
-      // Easing can briefly overshoot a shrinking fit; take the smaller.
-      const px = Math.min(fontPx, fit(fontPx) ? fontPx : want);
+      while (want > MIN_PX && !fits(want)) want *= 0.93;
+      want = Math.max(want, MIN_PX);
+      fontPx = fontPx === 0 || fast ? want : approach(fontPx, want, 0.12, dt);
+      const px = fontPx > want && !fits(fontPx) ? want : fontPx;
 
-      const { laid, lines } = wrap(ctx, toks, px, exprW);
+      const { laid, lines } = wrap(toks, px, charW, exprW);
       const lh = px * 1.5;
-      const blockH = lines.length * lh;
+      const rows = Math.max(1, Math.floor(exprH / lh));
+      const cut = lines.length > rows;
+      const blockH = Math.min(lines.length, rows) * lh;
       const y0 = exprY + Math.max(0, (exprH - blockH) / 2);
-      const lineX = (line: number): number =>
-        lines.length === 1 ? exprX + (exprW - lines[line]) / 2 : exprX;
+      const lineX = (line: number): number => (lines.length === 1 ? exprX + (exprW - lines[line]) / 2 : exprX);
 
-      // Glow behind the subterm in play, one box per line it spans.
+      // Light up the subterm in play, one box per line it spans.
       if (heat > 0) {
-        const glow = range(kGlow, 0, 26);
         const spans = new Map<number, [number, number]>();
         for (const l of laid) {
-          if (!l.tok.hot) continue;
+          if (!l.tok.hot || l.line >= rows) continue;
           const s = spans.get(l.line);
           spans.set(l.line, s ? [Math.min(s[0], l.x), Math.max(s[1], l.x + l.w)] : [l.x, l.x + l.w]);
         }
         ctx.save();
-        ctx.shadowColor = pal[hotColor](0.7 * heat);
-        ctx.shadowBlur = glow;
-        ctx.fillStyle = pal[hotColor](0.16 * heat);
+        ctx.shadowColor = ink(act, 0.7 * heat);
+        ctx.shadowBlur = px > 9 ? 14 : 0;
+        ctx.fillStyle = ink(act, 0.18 * heat);
         for (const [line, [a, b]] of spans) {
-          const x = lineX(line) + a - px * 0.12;
-          const y = y0 + line * lh + (lh - px * 1.25) / 2;
-          const w = b - a + px * 0.24;
           const h = px * 1.25;
-          const rad = Math.min(px * 0.25, h / 2);
           ctx.beginPath();
-          ctx.roundRect(x, y, w, h, rad);
+          ctx.roundRect(lineX(line) + a - px * 0.12, y0 + line * lh + (lh - h) / 2, b - a + px * 0.24, h, Math.min(px * 0.25, h / 2));
           ctx.fill();
         }
         ctx.restore();
@@ -416,103 +424,183 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
       ctx.textAlign = 'left';
       ctx.font = `400 ${px}px ${MONO}`;
       for (const l of laid) {
-        const x = lineX(l.line) + l.x + (l.tok.kind === 'op' ? px * OP_GAP : 0);
-        const y = y0 + l.line * lh + lh / 2;
-        let ink = l.tok.kind === 'num' ? pal.text : l.tok.kind === 'op' ? pal.op : pal.paren;
-        if (l.tok.hot && heat > 0) ink = pal[hotColor](0.55 + 0.45 * heat);
-        ctx.fillStyle = ink;
-        ctx.fillText(l.tok.text, x, y);
+        if (l.line >= rows) break;
+        const kind = l.tok.kind;
+        ctx.fillStyle =
+          l.tok.hot && heat > 0
+            ? ink(act, 0.55 + 0.45 * heat)
+            : kind === 'num' || kind === 'var'
+              ? pal.text
+              : kind === 'paren'
+                ? pal.paren
+                : pal.op;
+        ctx.fillText(l.tok.text, lineX(l.line) + l.x + (kind === 'op' ? px * OP_GAP : 0), y0 + l.line * lh + lh / 2);
+      }
+      if (cut) {
+        // Too long to show even at the smallest type: say so rather than pretend.
+        const note = `only the first part fits · ${commas(shown.n)} nodes in all`;
+        ctx.font = `500 ${type * 0.72}px ${MONO}`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        const nw = ctx.measureText(note).width;
+        ctx.fillStyle = pal.bg[1];
+        ctx.fillRect(exprX + exprW - nw - type, exprY + exprH - type * 1.3, nw + type, type * 1.3);
+        ctx.fillStyle = ink(act, 0.9);
+        ctx.fillText(note, exprX + exprW, exprY + exprH - type * 0.2);
       }
 
-      /* ---------------------------------------------------- size graph */
+      /* --------------------------------------------------------- graph */
 
       if (graphH > 0) {
         const gx = exprX;
         const gw = exprW;
-        const gy = plotY + plotH - graphH;
-        const sizes = r.frames.map(size);
-        const maxS = Math.max(...sizes);
-        const X = (i: number): number => gx + (i / Math.max(1, last)) * gw;
-        const Y = (s: number): number => gy + graphH - (s / maxS) * graphH;
+        const gy = plotY + plotH - graphH - type * 0.7;
+        const X = (i: number): number => gx + (Math.log1p(i) / Math.log1p(maxSteps)) * gw;
+        const Y = (n: number): number => gy + graphH - (n / maxSize) * graphH;
 
-        const area = (from: number, to: number, color: (a: number) => string): void => {
-          ctx.beginPath();
-          ctx.moveTo(X(from), gy + graphH);
-          for (let i = from; i <= to; i++) ctx.lineTo(X(i), Y(sizes[i]));
-          ctx.lineTo(X(to), gy + graphH);
-          ctx.closePath();
-          ctx.fillStyle = color(0.14);
-          ctx.fill();
-          ctx.beginPath();
-          for (let i = from; i <= to; i++) {
-            if (i === from) ctx.moveTo(X(i), Y(sizes[i]));
-            else ctx.lineTo(X(i), Y(sizes[i]));
-          }
-          ctx.strokeStyle = color(0.75);
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        };
-        area(0, r.grown, pal.grow);
-        area(r.grown, last, pal.shrink);
-
-        const s0 = sizes[k];
-        const s1 = sizes[Math.min(last, k + 1)];
-        const mx = X(progress);
-        const my = Y(s0 + (s1 - s0) * f);
-        ctx.strokeStyle = pal.dim;
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(mx, gy);
-        ctx.lineTo(mx, gy + graphH);
-        ctx.stroke();
+        // Faint decades along the bottom: 1, 10, 100, 1000 steps.
+        ctx.font = `500 ${type * 0.58}px ${MONO}`;
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+        for (let d = 10; d <= maxSteps; d *= 10) {
+          ctx.fillStyle = pal.dim;
+          ctx.globalAlpha = 0.22;
+          ctx.fillRect(X(d), gy, 1, graphH);
+          ctx.globalAlpha = 0.7;
+          ctx.fillText(commas(d), X(d), gy + graphH + 3);
+        }
         ctx.globalAlpha = 1;
-        ctx.fillStyle = progress <= r.grown ? pal.grow(1) : pal.shrink(1);
+        ctx.fillStyle = pal.dim;
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(gx, gy + graphH, gw, 1);
+        ctx.globalAlpha = 1;
+
+        const live: Act = act === 'grow' ? 'planted' : act;
+        for (const a of ACTS) {
+          const pts = curves[a];
+          if (!pts) continue;
+          const on = a === live;
+          ctx.beginPath();
+          pts.forEach((p, j) => (j ? ctx.lineTo(X(p.i), Y(p.n)) : ctx.moveTo(X(p.i), Y(p.n))));
+          ctx.strokeStyle = ink(a, on ? 0.95 : 0.4);
+          ctx.lineWidth = on ? 2 : 1.2;
+          ctx.stroke();
+          // How it ended: a dot on the floor, a cross where it stuck, a bar where it gave up.
+          const lastPt = pts[pts.length - 1];
+          const ex = X(lastPt.i);
+          const ey = Y(lastPt.n);
+          const out = I[a as Exclude<Act, 'grow'>].outcome;
+          ctx.strokeStyle = ink(a, on ? 1 : 0.6);
+          ctx.fillStyle = ink(a, on ? 1 : 0.6);
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          if (out === 'reached') {
+            ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (out === 'stuck') {
+            ctx.moveTo(ex - 4, ey - 4);
+            ctx.lineTo(ex + 4, ey + 4);
+            ctx.moveTo(ex + 4, ey - 4);
+            ctx.lineTo(ex - 4, ey + 4);
+            ctx.stroke();
+          } else {
+            ctx.moveTo(ex, ey - 6);
+            ctx.lineTo(ex, ey + 6);
+            ctx.stroke();
+          }
+        }
+
+        // Where the expression on screen sits. The generator runs the planted path right to left.
+        const total = I[live].frames.length - 1;
+        const pos = act === 'grow' ? total - progress : progress;
+        const a0 = I[live].frames[clamp(Math.floor(pos), 0, total)].n;
+        const a1 = I[live].frames[clamp(Math.floor(pos) + 1, 0, total)].n;
+        const mx = X(pos);
+        const my = Y(a0 + (a1 - a0) * (pos - Math.floor(pos)));
+        ctx.fillStyle = ink(act, 1);
         ctx.beginPath();
-        ctx.arc(mx, my, 3.5, 0, Math.PI * 2);
+        ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = pal.bg[1];
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
         ctx.font = `500 ${type * 0.62}px ${MONO}`;
         setTracking(ctx, '0.18em');
         ctx.textBaseline = 'bottom';
         ctx.textAlign = 'left';
         ctx.fillStyle = pal.dim;
-        ctx.fillText(`SIZE · LONGEST ${maxS} NODES`, gx, gy - 4);
+        ctx.fillText('SIZE ALONG EACH WAY DOWN FROM E · STEPS →', gx, gy - 5);
         setTracking(ctx, '0em');
       }
 
-      /* ------------------------------------------------------ rule list */
+      /* ---------------------------------------------------- scoreboard */
 
       if (wide) {
-        const px0 = plotX + plotW - panelW;
-        const t = type * 0.78;
-        const rowH = t * 1.45;
-        const rows = Math.max(3, Math.floor(plotH / rowH));
-        // Keep the current step about two thirds of the way down the list.
-        const cur = stepping ? k : Math.max(0, k - 1);
-        const first = clamp(cur - Math.floor(rows * 0.66), 0, Math.max(0, r.steps.length - rows));
-        ctx.font = `400 ${t}px ${MONO}`;
+        const x0 = plotX + plotW - panelW;
+        const t = type * 0.8;
+        const lineH = t * 1.42;
+        let y = plotY;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        for (let i = 0; i < rows && first + i < r.steps.length; i++) {
-          const n = first + i;
-          const s = r.steps[n];
-          const done = n < k || (n === k && !before);
-          const now = n === cur && (stepping || phase !== 'start');
-          const color = s.phase === 'grow' ? pal.grow : pal.shrink;
-          ctx.globalAlpha = now ? 1 : done ? 0.8 : 0.38;
-          ctx.fillStyle = now ? color(1) : done ? pal.text : pal.dim;
-          const label = s.phase === 'grow' ? `${n + 1}`.padStart(3) : `${n + 1 - r.grown}`.padStart(3);
-          let text = `${label}  ${s.rule}`;
-          while (text.length > 4 && ctx.measureText(text).width > panelW) text = text.slice(0, -2) + '…';
-          ctx.fillText(text, px0, plotY + i * rowH);
-          if (n === r.grown - 1 && n + 1 < r.steps.length) {
-            ctx.globalAlpha = 0.4;
-            ctx.fillStyle = pal.dim;
-            ctx.fillRect(px0, plotY + (i + 1) * rowH - t * 0.25, panelW * 0.9, 1);
+
+        const caps = (text: string, color: string): void => {
+          ctx.font = `500 ${t * 0.82}px ${MONO}`;
+          setTracking(ctx, '0.16em');
+          ctx.fillStyle = color;
+          ctx.fillText(text.toUpperCase(), x0, y);
+          setTracking(ctx, '0em');
+          y += lineH;
+        };
+        const para = (text: string, color: string, indent = 0): void => {
+          ctx.font = `400 ${t}px ${MONO}`;
+          ctx.fillStyle = color;
+          let row = '';
+          for (const word of text.split(' ')) {
+            const trial = row ? `${row} ${word}` : word;
+            if (row && ctx.measureText(trial).width > panelW - indent) {
+              ctx.fillText(row, x0 + indent, y);
+              y += lineH;
+              row = word;
+            } else row = trial;
           }
+          ctx.fillText(row, x0 + indent, y);
+          y += lineH;
+        };
+
+        caps(`generator ${I.spec.level} · ${LEVELS[I.spec.level]}`, ink('grow'));
+        para(`λ = ${I.spec.lambda}, E has ${I.E.n} nodes`, pal.text);
+        y += lineH * 0.45;
+
+        caps('plug in numbers', pal.dim);
+        para(`E is worth ${Math.round(I.sample * 1000) / 1000 + 0} at a random point. An answer, but not a path.`, pal.text, t);
+        y += lineH * 0.3;
+
+        for (const a of ACTS) {
+          if (a === 'grow') continue;
+          const on = a === act || (act === 'grow' && a === 'planted');
+          ctx.globalAlpha = on ? 1 : 0.62;
+          ctx.fillStyle = ink(a);
+          ctx.beginPath();
+          ctx.arc(x0 - t * 0.75, y + t * 0.45, on ? t * 0.3 : t * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          caps(ACT_SHORT[a], ink(a));
+          para(verdict(I, a), pal.text, t);
+          ctx.globalAlpha = 1;
+          y += lineH * 0.3;
         }
-        ctx.globalAlpha = 1;
+
+        // The neighbourhood of the expression on screen, when it is small enough to count.
+        if (shown.n <= 400 && y + lineH * 3 < plotY + plotH) {
+          let c = edgesOf.get(shown);
+          if (!c) {
+            c = edgeCounts(shown);
+            edgesOf.set(shown, c);
+          }
+          y += lineH * 0.3;
+          caps('edges out of this expression', pal.dim);
+          para(`${c.down} shorter · ${c.level} same size · ${c.up} longer, and no end of ones that invent a term`, pal.text, t);
+        }
       }
 
       /* ---------------------------------------------------------- toast */
@@ -520,17 +608,22 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
       if (toastAge < 2.2) {
         const a = clamp(1 - (toastAge - 1.4) / 0.8) * 0.9;
         ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
         ctx.font = `500 ${type * 0.72}px ${MONO}`;
         setTracking(ctx, '0.22em');
-        ctx.fillStyle = pal.shrink(a);
-        ctx.textBaseline = 'top';
+        const tw = ctx.measureText(toast.toUpperCase()).width;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = pal.bg[0];
+        ctx.fillRect(exprX + exprW - tw - type, plotY + type * 1.3, tw + type, type * 1.5);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = ink('planted', a);
         ctx.fillText(toast.toUpperCase(), exprX + exprW, plotY + type * 1.6);
         setTracking(ctx, '0em');
       }
 
       if (padFlash > 0.01) {
         ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = pal.grow(padFlash * 0.05);
+        ctx.fillStyle = ink(act, padFlash * 0.05);
         ctx.fillRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'source-over';
       }
