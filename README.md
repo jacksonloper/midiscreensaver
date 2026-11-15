@@ -99,6 +99,12 @@ node tests/rewrite-check.mjs             # SEEDS=200 for the numbers in the post
 node tests/solve-check.mjs               # SEEDS=200 for the numbers in the post
 ```
 
+`tests/words-check.mjs` does the same for "Two words, one path":
+
+```bash
+node tests/words-check.mjs               # SEEDS=200 for the numbers in the post
+```
+
 Playwright is not a dependency. The MIDI script is the only thing that uses it, and leaving it out
 keeps the deploy build small.
 
@@ -106,6 +112,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
+| Two words, one path | Watch a generator swap letters by a short list of rules, then pick which attacker tries to find a chain of swaps between the two words |
 | Solving for x, y and z, one rewrite at a time | Watch a generator scramble a solved system of equations, then pick which attacker tries to solve it, or play the generator's way back |
 | Hiding a zero in algebra | Watch a generator hide a zero in a long expression or a small circuit, then pick which attacker tries to get it back, or play the planted path |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
