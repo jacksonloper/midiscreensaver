@@ -93,6 +93,12 @@ success rates the post quotes. It needs nothing but Node 22.18 or newer:
 node tests/rewrite-check.mjs             # SEEDS=200 for the numbers in the post
 ```
 
+`tests/solve-check.mjs` does the same for "Solving for x, y and z, one rewrite at a time":
+
+```bash
+node tests/solve-check.mjs               # SEEDS=200 for the numbers in the post
+```
+
 Playwright is not a dependency. The MIDI script is the only thing that uses it, and leaving it out
 keeps the deploy build small.
 
@@ -100,6 +106,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
+| Solving for x, y and z, one rewrite at a time | Watch a generator scramble a solved system of equations, then pick which attacker tries to solve it, or play the generator's way back |
 | Hiding a zero in algebra | Watch a generator hide a zero in a long expression or a small circuit, then pick which attacker tries to get it back, or play the planted path |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
 | A tiny planet with people on it | Change how the world is drawn — palette, grid, labels, ice caps, buildings, night lights, stars — and pick somebody to follow |
