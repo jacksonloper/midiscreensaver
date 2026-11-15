@@ -133,14 +133,14 @@ export const bitRewriting: Entry = {
         Now attacker 1 stops partway down, at an expression where every edge leads to something
         the same size or longer. The panel counts those edges for whatever is on screen. The
         planted path gets through because it knows which sideways steps to take first. In 200
-        instances at each setting, attacker 1 reached 0 48% of the time at λ = 8 and 6% of
+        instances at each setting, attacker 1 reached 0 42% of the time at λ = 8 and 6% of
         the time at λ = 40.
       </p>
       <p>
         Attacker 2 repairs this cheaply. It puts every sum and every product into one fixed
         bracketing and one fixed order, which takes only sideways steps, and then goes downhill
         again. Two terms that differ only by shuffling become letter for letter the same. It
-        reached 0 in 98% to 100% of those instances. Shuffling hides nothing, because
+        reached 0 in 99% to 100% of those instances. Shuffling hides nothing, because
         order and bracketing can be normalised without understanding anything else.
       </p>
 
@@ -149,7 +149,7 @@ export const bitRewriting: Entry = {
         Generator 3 hides zeros as P − P where P is a product of several two-term sums, and its
         scrambling may also multiply brackets out. So one copy of P stays as a product while the
         other is partly expanded. Sorting cannot match them any more. At the opening setting,
-        λ = 16, attacker 1 reached 0 in 2% of instances and attacker 2 in 25%.
+        λ = 16, attacker 1 reached 0 in 1% of instances and attacker 2 in 23%.
       </p>
       <p>
         Attacker 3 always has an answer in principle. It multiplies everything out into a sum of
@@ -160,10 +160,10 @@ export const bitRewriting: Entry = {
       <p>
         The trouble is its length. A product of k two-term sums is about 4k symbols long as
         written and has up to 2<sup>k</sup> terms multiplied out. On the graph, attacker 3 climbs a
-        mountain before it comes down. At λ = 16 it finished in 90% of instances. Its typical walk
-        was about 6,200 steps long and passed through expressions of about 700 nodes. The planted
-        path was 96 steps and never holds anything longer than E, which was typically 235 nodes. At λ = 24 it finished inside its
-        budget of 12,000 steps in 12% of instances, and at λ = 32 in none.
+        mountain before it comes down. At λ = 16 it finished in 88% of instances. Its typical walk
+        was about 6,800 steps long and passed through expressions of about 730 nodes. The planted
+        path was 96 steps and never holds anything longer than E, which was typically 257 nodes. At λ = 24 it finished inside its
+        budget of 12,000 steps in 9% of instances, and at λ = 32 in none.
       </p>
       <p>
         This is the shape the open problem is after: a short walk that exists, and attackers
