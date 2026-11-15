@@ -100,7 +100,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
-| Hiding a zero in algebra | Watch a generator hide a zero in a long expression, then pick which attacker tries to get it back, or play the planted path |
+| Hiding a zero in algebra | Watch a generator hide a zero in a long expression or a small circuit, then pick which attacker tries to get it back, or play the planted path |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
 | A tiny planet with people on it | Change how the world is drawn — palette, grid, labels, ice caps, buildings, night lights, stars — and pick somebody to follow |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |

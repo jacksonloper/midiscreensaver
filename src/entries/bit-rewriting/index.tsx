@@ -5,14 +5,14 @@ export const bitRewriting: Entry = {
   slug: 'bit-rewriting',
   title: 'Hiding a zero in algebra',
   date: '2026-11-15',
-  dek: 'A generator hides a 0 inside a long expression and keeps the way back. Three attackers who are given only the expression try to find a way back of their own.',
-  tags: ['algebra', 'rewriting', 'cryptography', 'canvas'],
+  dek: 'A generator hides a 0 inside a long expression, or a small circuit, and keeps the way back. Three attackers who are given only the expression try to find a way back of their own.',
+  tags: ['algebra', 'rewriting', 'circuits', 'cryptography', 'canvas'],
   knobs: [
     { label: 'Security parameter λ', default: knobForLambda(16) },
     { label: 'Pace', default: 0.55 },
     { label: 'Which instance', default: 0.1 },
     { label: 'Type size', default: 0.5 },
-    { label: 'Generator, 0 to 4', default: knobForLevel(3) },
+    { label: 'Generator, 0 to 5', default: knobForLevel(5) },
     { label: 'Palette', default: 0.1 },
     { label: 'Pause after each walk', default: 0.35 },
     { label: 'Graph height', default: 0.5 },
@@ -60,13 +60,20 @@ export const bitRewriting: Entry = {
         expression. Long walks are played fast.
       </p>
       <p>
+        The post opens on generator 5, where E is a circuit: an expression with named parts. It
+        is shown as a short program. The top line is E itself, and each line under it defines one
+        gate, named with a Greek letter, that the lines above may use as often as they like. The
+        arcs in the left margin join each gate to the lines that use it. A gate is written once
+        however often it is used, and that is the whole point of a circuit.
+      </p>
+      <p>
         The graph at the bottom plots the size of the expression along each way down from E, with
         the number of steps on a logarithmic scale. A dot on the floor means the walk reached
         0, a cross means it got stuck, and an upright bar means it ran out of budget. The panel
         on the right says the same in words.
       </p>
       <p>
-        Knob 5 picks one of five generators, each allowed to do more than the last. Knob 1 is the
+        Knob 5 picks one of six generators, each allowed to do more than the last. Knob 1 is the
         security parameter λ: how many times the generator hides something. Pad 8 or knob 3 gives
         a different instance. Pad 6 steps by hand and pad 7 plays again.
       </p>
@@ -86,6 +93,13 @@ export const bitRewriting: Entry = {
         <li>arithmetic on two written-out whole numbers, such as 1 + 1 = 2</li>
       </ul>
       <p>
+        A circuit needs four more moves, in two pairs, and they change what is shared without
+        changing what anything is worth. Unfold writes a gate's definition in place of one use
+        of its name, and fold does the reverse. Add defines a new gate that nothing uses yet, and
+        drop deletes a gate that nothing uses. Size is everything that has to be written down:
+        the top line plus every gate, each counted once.
+      </p>
+      <p>
         Brackets on screen follow the tree exactly. (x + y) + z and x + (y + z) are two different
         points of the graph, one associativity step apart.
       </p>
@@ -95,6 +109,14 @@ export const bitRewriting: Entry = {
         Give every variable a random value and work E out. It comes to 0, and that is T.
         This works on every generator here and takes no thought at all. The panel shows it as
         "plug in numbers".
+      </p>
+      <p>
+        One detail matters once there are circuits. A few dozen gates can stand for a polynomial
+        of enormous degree, and ordinary arithmetic on it overflows. So the values here are
+        worked out modulo a prime, where every gate still has an exact value. The same trick is
+        how this is done in earnest. There is no sine modulo a prime, so each sin and cos pair is
+        given some pair of values whose squares add to 1, which is all the identities know about
+        them.
       </p>
       <p>
         It does not break anything, because the problem asks for a walk, and a number is not a
@@ -187,40 +209,104 @@ export const bitRewriting: Entry = {
         instances to be hard, which is a much stronger thing to ask.
       </p>
 
+      <h2>Generator 5: shared gates</h2>
+      <p>
+        Generators 0 to 4 hide many small things, each in its own corner of E. Generator 5 hides
+        one thing, and uses sharing to do it. It builds a tower of gates. Each floor uses the
+        floor below it twice, for example γ = β · β + u, so the degree of the polynomial doubles
+        at every floor while the circuit grows by about seven nodes. Then E is the top of the
+        tower minus itself, which is plainly 0.
+      </p>
+      <p>
+        Then it makes the two sides different. Working down the tower, it unfolds one use of
+        each floor on the right-hand side only and multiplies out around it. The right side ends
+        up assembled from pieces of every floor, in a shape that no longer lines up with the
+        gates on the left. Finally it gives a couple of those pieces names of their own, which
+        are gates the left side has no match for. Now E is one circuit minus a different circuit
+        for the same polynomial.
+      </p>
+      <p>
+        At λ = 16 the tower has five floors. E is typically 79 nodes and the planted path is
+        31 steps. Written out with nothing shared, the same E would be about 760 nodes, and at
+        λ = 40 about 12,000 against 137 as a circuit.
+      </p>
+      <p>
+        Attacker 1 never reached 0, in 1,000 instances across all settings. Attacker 2 reached it
+        in 4% of instances at λ = 8 and in 1% or fewer above that. For attacker 2, sorting was given one more power here: when two gates come out
+        with the same definition, it merges them. That rarely helps, because the two sides were
+        built through different intermediate gates and no two of them are the same.
+      </p>
+      <p>
+        Attacker 3 was upgraded to respect sharing. It expands one gate at a time, treating the
+        gates below as extra variables, and only writes a gate out in full when it has to. It
+        still always gets there in the end, because once everything is written out it is back to
+        ordinary polynomials. But the two sides only agree once the comparison reaches the
+        bottom of the tower, and by then it is handling a polynomial whose degree has doubled at
+        every floor. It finished inside its budget in 85% of instances at λ = 8, which is three
+        floors, in 14% at λ = 16, in 2% at λ = 24, and never above that. The planted path grows by five
+        steps a floor.
+      </p>
+      <p>
+        This is the widest gap in the post, and the first that does not depend on a cap chosen to
+        keep things on screen: each extra floor costs the generator a constant and doubles the
+        degree the expander has to handle.
+      </p>
+
+      <h2>The attacker that is missing</h2>
+      <p>
+        There is a well-known way to attack exactly this, and it is not built here. Plugging in
+        numbers tells you more than the value of E. It tells you the value of every gate and
+        every subterm, and two that agree at a random point are almost certainly equal
+        everywhere. So an attacker can use numbers as a compass: find a piece of the right side
+        that equals some gate on the left, prove that small equality, fold it, and repeat one
+        floor up. Each proof is small because it only spans one floor. Circuit designers do this
+        to check that two chips compute the same thing.
+      </p>
+      <p>
+        Generator 5 has a partial defence: where it multiplies out across a boundary, the
+        piece that equalled a gate is smeared over several terms and is no longer a subterm
+        anywhere, so there is nothing for the compass to point at without factoring first. How
+        well that holds up is the obvious next thing to measure. It is the heart of the open
+        problem. Numbers make every true equality visible. Security needs the proofs to stay out
+        of reach anyway.
+      </p>
+
       <h2>Where this toy is weak</h2>
       <ul>
         <li>
-          Each hidden piece is a self-contained subterm. An attacker can deal with them one at a
-          time, and attacker 3 already does. A real construction would need the hiding to be
-          tangled across the whole expression, so that no small part can be simplified alone.
+          In generators 0 to 4 each hidden piece is a self-contained subterm, and an attacker can
+          deal with them one at a time. Attacker 3 already does. Generator 5 hides a single
+          thing spread over the whole circuit, but in a very regular way: one unfolding per
+          floor.
         </li>
         <li>
-          The products stop at eight factors so that E fits on a screen. The 12,000-step budget
-          is what makes attacker 3 give up, not a law of nature. A patient attacker finishes.
+          The 12,000-step budget is what makes attacker 3 give up. In generators 3 and 4 the
+          products also stop at eight factors so that E fits on a screen, so there a patient
+          attacker finishes. In generator 5 the cost doubles per floor, so patience runs out, but
+          only against this one attacker.
         </li>
         <li>
-          There is no factoring attacker. One copy of each P is still a product, and factoring
-          the multiplied-out copy to match it is exactly what the planted path does. Nothing here
-          shows that this is hard to rediscover.
+          There is no factoring attacker and no compass attacker. Either might undo generator 5
+          quickly. Nothing here shows that they cannot.
         </li>
         <li>
           The three attackers are the first three anyone would try. Security means every
           efficient attacker fails, including ones nobody has thought of.
         </li>
         <li>
-          Expressions here are trees. The problem allows circuits, where a subterm can be shared
-          and written once. That changes the sizes a great deal: P − P with P shared is small
-          however large P is when written out.
+          T is always 0, so the attacker knows where the walk ends. In the real problem the short
+          expression is not known in advance.
         </li>
       </ul>
 
       <h2>Checking it</h2>
       <p>
         The algebra is in one file with no dependencies, and <code>node tests/rewrite-check.mjs</code>{' '}
-        runs it on 1,000 instances and prints a table of who reached 0. For each one it checks every step of every walk from the two
-        expressions either side of it: nothing outside the rewritten subterm may differ, and the
-        subterm before and after must be the two sides of one identity. It also checks that no
-        step changes the value at a random point. The numbers quoted above are from that script
+        runs it on 1,200 instances and prints a table of who reached 0. For each one it checks every step of every walk from the two
+        circuits either side of it. For an identity, nothing outside the rewritten subterm may
+        differ, and the subterm before and after must be the two sides of that identity. For the
+        four sharing moves, the step is done again and the results compared. It also checks that
+        no step changes the value at a random point modulo the prime. The numbers quoted above are from that script
         run with <code>SEEDS=200</code>, which is 200 instances per setting.
       </p>
     </>

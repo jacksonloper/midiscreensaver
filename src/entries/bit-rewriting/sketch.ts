@@ -3,13 +3,16 @@ import { approach, clamp, hsl, range } from '../../screensaver/util';
 import {
   LEVELS,
   edgeCounts,
-  evaluate,
+  evalCircuit,
+  fullSize,
+  heights,
   makeInstance,
   ruleText,
   tokens,
   type Attack,
-  type Expr,
+  type Circuit,
   type Instance,
+  type Path,
   type Token,
   type Walk,
 } from './rewrite';
@@ -56,6 +59,39 @@ const ACT_SHORT: Record<Act, string> = {
 const walkOf = (inst: Instance, act: Act): Walk => (act === 'grow' ? inst.grown : inst[act]);
 
 const commas = (n: number): string => n.toLocaleString('en-US');
+
+const SUPER = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+/** A count that may be astronomically large, e.g. 3.1 × 10¹². */
+const big = (n: number): string => {
+  if (n < 1e6) return commas(Math.round(n));
+  const exp = Math.floor(Math.log10(n));
+  const digits = String(exp)
+    .split('')
+    .map((d) => SUPER[Number(d)])
+    .join('');
+  return `${(n / 10 ** exp).toFixed(1)} × 10${digits}`;
+};
+
+/** One line of the listing: the root, or one named gate. */
+interface Row {
+  name: string | null;
+  toks: Token[];
+  /** Which gates this row uses, and how often. */
+  refs: Map<string, number>;
+}
+
+/** The circuit as a short program: the root first, then gates from the top of the tower down. */
+const rowsOf = (c: Circuit, hot: { def: string | null; path: Path } | null): Row[] => {
+  const h = heights(c);
+  const row = (name: string | null, body: Parameters<typeof tokens>[0]): Row => {
+    const toks = tokens(body, hot && hot.def === name ? hot.path : null);
+    const refs = new Map<string, number>();
+    for (const t of toks) if (t.kind === 'ref') refs.set(t.text, (refs.get(t.text) ?? 0) + 1);
+    return { name, toks, refs };
+  };
+  const defs = c.defs.slice().sort((a, b) => h.get(b.name)! - h.get(a.name)!);
+  return [row(null, c.root), ...defs.map((d) => row(d.name, d.body))];
+};
 
 const verdict = (inst: Instance, act: Act): string => {
   if (act === 'grow') return `this is E: ${inst.E.n} nodes, and all an attacker is given`;
@@ -187,11 +223,11 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
   let lastPalette = -1;
 
   // Small caches, each keyed on the expression object now on screen.
-  let tokFor: Expr | null = null;
-  let tokHot = '';
-  let toks: Token[] = [];
-  const valueOf = new WeakMap<Expr, number>();
-  const edgesOf = new WeakMap<Expr, { down: number; level: number; up: number }>();
+  let rowsFor: Circuit | null = null;
+  let rowsHot = '';
+  let rows: Row[] = [];
+  const valueOf = new WeakMap<Circuit, number>();
+  const edgesOf = new WeakMap<Circuit, { down: number; level: number; up: number }>();
 
   let padFlash = 0;
   let toast = '';
@@ -298,7 +334,20 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
       // it. A fast one just flashes where the rewrite landed.
       const before = fast || f < 0.5 || !stepping;
       const shown = stepping && !before ? w2.frames[k + 1] : w2.frames[k];
-      const hotPath = stepping ? w2.steps[k].path : null;
+      // What to light up: the subterm a step rewrites, or the whole gate it adds or drops.
+      const st = stepping ? w2.steps[k] : null;
+      const hot =
+        st === null
+          ? null
+          : st.kind === 'add'
+            ? before
+              ? null
+              : { def: st.name, path: [] as Path }
+            : st.kind === 'drop'
+              ? before
+                ? { def: st.name, path: [] as Path }
+                : null
+              : { def: st.def, path: st.path };
       const heat = !stepping ? 0 : fast ? 0.75 : before ? clamp(f / 0.3) : clamp(1 - (f - 0.5) / 0.5);
       const atEnd = k === end && !stepping;
 
@@ -346,7 +395,7 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
 
       let worth = valueOf.get(shown);
       if (worth === undefined) {
-        worth = Math.round(evaluate(shown, I.env) * 1000) / 1000 + 0;
+        worth = evalCircuit(shown, I.env);
         valueOf.set(shown, worth);
       }
       ctx.textAlign = 'right';
@@ -369,72 +418,140 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
 
       /* ---------------------------------------------------- expression */
 
-      const hotKey = hotPath ? hotPath.join('') + (before ? 'b' : 'a') : '';
-      if (tokFor !== shown || tokHot !== hotKey) {
-        toks = tokens(shown, hotPath);
-        tokFor = shown;
-        tokHot = hotKey;
+      const hotKey = hot ? `${hot.def}:${hot.path.join('')}:${before ? 'b' : 'a'}` : '';
+      if (rowsFor !== shown || rowsHot !== hotKey) {
+        rows = rowsOf(shown, hot);
+        rowsFor = shown;
+        rowsHot = hotKey;
       }
       if (charW === 0) {
         ctx.font = `400 100px ${MONO}`;
         charW = ctx.measureText('0').width / 100;
       }
+      // With gates, each row gets a label and there is a margin for the wiring.
+      const many = rows.length > 1;
+      const labelChars = many ? Math.max(1, ...rows.map((r) => (r.name ?? 'E').length)) : 0;
+      const place = (px: number) => {
+        const labelW = many ? (labelChars + 3) * charW * px : 0;
+        const gutter = many ? px * 2.6 : 0;
+        const avail = exprW - labelW - gutter;
+        let y = 0;
+        let widest = 0;
+        const parts = rows.map((r) => {
+          const w = wrap(r.toks, px, charW, avail);
+          const top = y;
+          y += w.lines.length * px * 1.5 + (many ? px * 0.4 : 0);
+          widest = Math.max(widest, ...w.lines);
+          return { ...w, top };
+        });
+        return { parts, height: y, ok: y <= exprH && widest <= avail, labelW, gutter };
+      };
       // The largest type that fits, but never so large a lone 0 looks silly.
       const MIN_PX = 5.5;
-      const fits = (px: number): boolean => {
-        const { lines } = wrap(toks, px, charW, exprW);
-        return lines.length * px * 1.5 <= exprH && Math.max(...lines) <= exprW;
-      };
       let want = Math.min(type * 6, exprH / 1.5);
-      while (want > MIN_PX && !fits(want)) want *= 0.93;
+      while (want > MIN_PX && !place(want).ok) want *= 0.93;
       want = Math.max(want, MIN_PX);
       fontPx = fontPx === 0 || fast ? want : approach(fontPx, want, 0.12, dt);
-      const px = fontPx > want && !fits(fontPx) ? want : fontPx;
+      const px = fontPx > want && !place(fontPx).ok ? want : fontPx;
 
-      const { laid, lines } = wrap(toks, px, charW, exprW);
+      const L = place(px);
       const lh = px * 1.5;
-      const rows = Math.max(1, Math.floor(exprH / lh));
-      const cut = lines.length > rows;
-      const blockH = Math.min(lines.length, rows) * lh;
-      const y0 = exprY + Math.max(0, (exprH - blockH) / 2);
-      const lineX = (line: number): number => (lines.length === 1 ? exprX + (exprW - lines[line]) / 2 : exprX);
+      const cut = L.height > exprH + 1;
+      const y0 = exprY + Math.max(0, (exprH - L.height) / 2);
+      const bodyX = exprX + L.gutter + L.labelW;
+      const lone = !many && L.parts[0].lines.length === 1;
+      const lineX = (part: (typeof L.parts)[number], line: number): number =>
+        lone ? exprX + (exprW - part.lines[line]) / 2 : bodyX;
+      const visible = (top: number, line: number): boolean => top + (line + 1) * lh <= exprH + 1;
+      const gate = (a: number): string => hsl(198, pal.sat, pal.light, a);
+
+      // The wiring: an arc in the margin from each gate to every row that uses it.
+      if (many) {
+        const rowY = new Map<string | null, number>();
+        rows.forEach((r, i) => {
+          if (visible(L.parts[i].top, 0)) rowY.set(r.name, y0 + L.parts[i].top + lh / 2);
+        });
+        const ax = exprX + L.gutter - px * 0.45;
+        const stName = st && st.kind !== 'id' ? st.name : null;
+        rows.forEach((r, i) => {
+          const yu = rowY.get(r.name);
+          if (yu === undefined) return;
+          for (const [name, count] of r.refs) {
+            const yd = rowY.get(name);
+            if (yd === undefined) continue;
+            const j = rows.findIndex((o) => o.name === name);
+            const bulge = Math.min(L.gutter - px * 0.7, px * 0.5 + Math.abs(j - i) * px * 0.3);
+            const lit = heat > 0 && hot !== null && hot.def === r.name && stName === name;
+            ctx.beginPath();
+            ctx.moveTo(ax, yu);
+            ctx.bezierCurveTo(ax - bulge * 1.33, yu, ax - bulge * 1.33, yd, ax, yd);
+            ctx.strokeStyle = lit ? ink(act, 0.9) : gate(0.22 + Math.min(0.3, count * 0.1));
+            ctx.lineWidth = lit ? 2 : Math.min(2.4, 0.7 + count * 0.4);
+            ctx.stroke();
+          }
+        });
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.font = `500 ${px}px ${MONO}`;
+        rows.forEach((r) => {
+          const y = rowY.get(r.name);
+          if (y === undefined) return;
+          const wholeHot = heat > 0 && hot !== null && hot.def === r.name && st !== null && (st.kind === 'add' || st.kind === 'drop');
+          ctx.fillStyle = wholeHot ? ink(act, 1) : r.name === null ? pal.text : gate(1);
+          ctx.fillText(r.name ?? 'E', exprX + L.gutter, y);
+          ctx.fillStyle = pal.op;
+          ctx.fillText('=', exprX + L.gutter + (labelChars + 1) * charW * px, y);
+          if (r.name !== null) {
+            ctx.fillStyle = gate(0.9);
+            ctx.beginPath();
+            ctx.arc(ax, y, Math.max(1.5, px * 0.14), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
 
       // Light up the subterm in play, one box per line it spans.
       if (heat > 0) {
-        const spans = new Map<number, [number, number]>();
-        for (const l of laid) {
-          if (!l.tok.hot || l.line >= rows) continue;
-          const s = spans.get(l.line);
-          spans.set(l.line, s ? [Math.min(s[0], l.x), Math.max(s[1], l.x + l.w)] : [l.x, l.x + l.w]);
-        }
         ctx.save();
         ctx.shadowColor = ink(act, 0.7 * heat);
         ctx.shadowBlur = px > 9 ? 14 : 0;
         ctx.fillStyle = ink(act, 0.18 * heat);
-        for (const [line, [a, b]] of spans) {
-          const h = px * 1.25;
-          ctx.beginPath();
-          ctx.roundRect(lineX(line) + a - px * 0.12, y0 + line * lh + (lh - h) / 2, b - a + px * 0.24, h, Math.min(px * 0.25, h / 2));
-          ctx.fill();
-        }
+        L.parts.forEach((part) => {
+          const spans = new Map<number, [number, number]>();
+          for (const l of part.laid) {
+            if (!l.tok.hot || !visible(part.top, l.line)) continue;
+            const sp = spans.get(l.line);
+            spans.set(l.line, sp ? [Math.min(sp[0], l.x), Math.max(sp[1], l.x + l.w)] : [l.x, l.x + l.w]);
+          }
+          for (const [line, [a, b]] of spans) {
+            const h = px * 1.25;
+            ctx.beginPath();
+            ctx.roundRect(lineX(part, line) + a - px * 0.12, y0 + part.top + line * lh + (lh - h) / 2, b - a + px * 0.24, h, Math.min(px * 0.25, h / 2));
+            ctx.fill();
+          }
+        });
         ctx.restore();
       }
 
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.font = `400 ${px}px ${MONO}`;
-      for (const l of laid) {
-        if (l.line >= rows) break;
-        const kind = l.tok.kind;
-        ctx.fillStyle =
-          l.tok.hot && heat > 0
-            ? ink(act, 0.55 + 0.45 * heat)
-            : kind === 'num' || kind === 'var'
-              ? pal.text
-              : kind === 'paren'
-                ? pal.paren
-                : pal.op;
-        ctx.fillText(l.tok.text, lineX(l.line) + l.x + (kind === 'op' ? px * OP_GAP : 0), y0 + l.line * lh + lh / 2);
+      for (const part of L.parts) {
+        for (const l of part.laid) {
+          if (!visible(part.top, l.line)) break;
+          const kind = l.tok.kind;
+          ctx.fillStyle =
+            l.tok.hot && heat > 0
+              ? ink(act, 0.55 + 0.45 * heat)
+              : kind === 'ref'
+                ? gate(1)
+                : kind === 'num' || kind === 'var'
+                  ? pal.text
+                  : kind === 'paren'
+                    ? pal.paren
+                    : pal.op;
+          ctx.fillText(l.tok.text, lineX(part, l.line) + l.x + (kind === 'op' ? px * OP_GAP : 0), y0 + part.top + l.line * lh + lh / 2);
+        }
       }
       if (cut) {
         // Too long to show even at the smallest type: say so rather than pretend.
@@ -570,10 +687,13 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
 
         caps(`generator ${I.spec.level} · ${LEVELS[I.spec.level]}`, ink('grow'));
         para(`λ = ${I.spec.lambda}, E has ${I.E.n} nodes`, pal.text);
+        if (I.E.defs.length > 0) {
+          para(`${I.E.defs.length} gates. With nothing shared it would be ${big(fullSize(I.E))} nodes.`, pal.text);
+        }
         y += lineH * 0.45;
 
         caps('plug in numbers', pal.dim);
-        para(`E is worth ${Math.round(I.sample * 1000) / 1000 + 0} at a random point. An answer, but not a path.`, pal.text, t);
+        para(`E is worth ${I.sample} at a random point. An answer, but not a path.`, pal.text, t);
         y += lineH * 0.3;
 
         for (const a of ACTS) {

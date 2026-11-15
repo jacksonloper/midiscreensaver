@@ -5,10 +5,11 @@
  *   node tests/rewrite-check.mjs
  *
  * For every instance it checks that each step of every walk is one identity
- * used once (verifyStep), that no step changes the value at a random point,
+ * used once or one sharing move (verifyStep), that no step changes the value
+ * at a random point modulo a prime,
  * and that the planted path and any walk marked "reached" end on 0.
  */
-import { LEVELS, evaluate, makeInstance, verifyStep } from '../src/entries/bit-rewriting/rewrite.ts';
+import { LEVELS, evalCircuit, makeInstance, verifyStep } from '../src/entries/bit-rewriting/rewrite.ts';
 
 const SEEDS = Number(process.env.SEEDS ?? 40);
 let failures = 0;
@@ -20,20 +21,20 @@ const fail = (msg) => {
 const checkWalk = (name, walk, inst, tag) => {
   for (let i = 0; i < walk.steps.length; i++) {
     if (!verifyStep(walk.frames[i], walk.frames[i + 1], walk.steps[i])) {
-      fail(`${tag} ${name}: step ${i} (${walk.steps[i].id}) is not one use of an identity`);
+      fail(`${tag} ${name}: step ${i} (${walk.steps[i].kind} ${walk.steps[i].id ?? walk.steps[i].name}) is not a single valid step`);
       return;
     }
   }
   // Values are compared on a sample of frames: a long walk has thousands.
   const stride = Math.max(1, Math.floor(walk.frames.length / 60));
   for (let i = 0; i < walk.frames.length; i += stride) {
-    if (Math.abs(evaluate(walk.frames[i], inst.env) - inst.bit) > 1e-6) {
+    if (evalCircuit(walk.frames[i], inst.env) !== inst.bit) {
       fail(`${tag} ${name}: frame ${i} is not worth ${inst.bit}`);
       return;
     }
   }
   const last = walk.frames[walk.frames.length - 1];
-  if (walk.outcome === 'reached' && !(last.k === 'num' && last.v === inst.bit)) {
+  if (walk.outcome === 'reached' && !(last.root.k === 'num' && last.root.v === inst.bit && last.defs.length === 0)) {
     fail(`${tag} ${name}: says it reached 0 but ended on something else`);
   }
 };
@@ -59,7 +60,7 @@ for (let level = 0; level < LEVELS.length; level++) {
       checkWalk('greedy', inst.greedy, inst, tag);
       checkWalk('sorted', inst.sorted, inst, tag);
       checkWalk('canonical', inst.canonical, inst, tag);
-      if (Math.abs(inst.sample - inst.bit) > 1e-6) fail(`${tag}: E is not worth 0`);
+      if (inst.sample !== inst.bit) fail(`${tag}: E is not worth 0`);
       if (inst.canonical.outcome === 'stuck') fail(`${tag}: canonical form stopped short of a number`);
       row.size.push(inst.E.n);
       row.planted.push(inst.planted.steps.length);
