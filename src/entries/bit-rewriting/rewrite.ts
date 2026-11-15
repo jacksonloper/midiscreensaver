@@ -5,7 +5,7 @@
  *
  * Everything is a walk in one graph. Vertices are expressions; an edge is a
  * single use of one identity from IDENTITIES, in either direction, on one
- * subterm. `makeInstance` plays the generator: it walks uphill from a bit to a
+ * subterm. `makeInstance` plays the generator: it walks uphill from 0 to a
  * long expression E and keeps the walk, which read backwards is the planted
  * path. Then three attackers, given only E, each try to walk back down.
  *
@@ -556,8 +556,8 @@ const factorKey = (f: Expr): string => (f.k === 'num' ? '' : show(f));
  * Expand everything. Afterwards the subterm at `path` is a sum of monomials
  * in a fixed order, each a number times a sorted product of variables and
  * sines, with no cos² left anywhere. Two expressions that are equal as
- * functions end up letter for letter the same, so a hidden bit ends up as the
- * bit. The catch is how long the walk is.
+ * functions end up letter for letter the same, so a hidden zero ends up as
+ * 0. The catch is how long the walk is.
  */
 const canon = (t: Tracer, path: Path): void => {
   const n = at(t.cur(), path);
@@ -689,11 +689,12 @@ export interface Spec {
   seed: number;
 }
 
-/** Walk uphill from a bit. The walk read backwards is the planted path. */
+/** Walk uphill from 0. The walk read backwards is the planted path. */
 const generate = ({ level, lambda, seed }: Spec): { bit: number; walk: Walk } => {
   const rand = prng(seed * 7919 + level * 104729 + 13);
   const pick = <T>(xs: T[]): T => xs[Math.floor(rand() * xs.length)];
-  const bit = rand() < 0.5 ? 0 : 1;
+  // T is always 0, so the question is the classic one: is E zero everywhere?
+  const bit = 0;
   const t = tracer(num(bit), Infinity);
   const pool = VARS.slice(0, level <= 2 ? 4 : VARS.length);
 
@@ -783,13 +784,13 @@ export interface Attack extends Walk {
 
 export interface Instance {
   spec: Spec;
-  /** T: the bit the whole thing is worth. */
+  /** T: what the whole thing is worth. Always 0. */
   bit: number;
   /** The long expression handed to the attackers. */
   E: Expr;
-  /** The generator's walk, from the bit up to E. */
+  /** The generator's walk, from 0 up to E. */
   grown: Walk;
-  /** The same walk backwards, from E down to the bit: what the generator keeps. */
+  /** The same walk backwards, from E down to 0: what the generator keeps. */
   planted: Attack;
   greedy: Attack;
   sorted: Attack;

@@ -38,7 +38,7 @@ const ACTS = ['grow', 'greedy', 'sorted', 'canonical', 'planted'] as const;
 type Act = (typeof ACTS)[number];
 
 const ACT_LABEL: Record<Act, string> = {
-  grow: 'generator · hiding the bit',
+  grow: 'generator · hiding a zero',
   greedy: 'attacker 1 · downhill only',
   sorted: 'attacker 2 · sort, then downhill',
   canonical: 'attacker 3 · multiply everything out',
@@ -160,7 +160,7 @@ const thin = (walk: Walk, maxSteps: number): { i: number; n: number }[] => {
 
 /**
  * One instance of the hiding game at a time. The generator walks uphill from
- * a bit to a long expression E; three attackers who are given only E try to
+ * 0 to a long expression E; three attackers who are given only E try to
  * walk back down; then the generator's own walk is played backwards. The
  * graph underneath is the size of the expression along each walk.
  */
@@ -379,7 +379,7 @@ export const createBitRewriting: SketchFactory = (): Sketch => {
         ctx.font = `400 100px ${MONO}`;
         charW = ctx.measureText('0').width / 100;
       }
-      // The largest type that fits, but never so large the lone bit looks silly.
+      // The largest type that fits, but never so large a lone 0 looks silly.
       const MIN_PX = 5.5;
       const fits = (px: number): boolean => {
         const { lines } = wrap(toks, px, charW, exprW);

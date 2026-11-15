@@ -1,12 +1,12 @@
 /**
- * Checks the algebra behind the "bit-rewriting" post and prints the numbers
+ * Checks the algebra behind the "Hiding a zero in algebra" post and prints the numbers
  * the post quotes. Needs Node 22.18 or newer, which loads TypeScript directly.
  *
  *   node tests/rewrite-check.mjs
  *
  * For every instance it checks that each step of every walk is one identity
  * used once (verifyStep), that no step changes the value at a random point,
- * and that the planted path and any walk marked "reached" end on the bit.
+ * and that the planted path and any walk marked "reached" end on 0.
  */
 import { LEVELS, evaluate, makeInstance, verifyStep } from '../src/entries/bit-rewriting/rewrite.ts';
 
@@ -34,7 +34,7 @@ const checkWalk = (name, walk, inst, tag) => {
   }
   const last = walk.frames[walk.frames.length - 1];
   if (walk.outcome === 'reached' && !(last.k === 'num' && last.v === inst.bit)) {
-    fail(`${tag} ${name}: says it reached the bit but ended on something else`);
+    fail(`${tag} ${name}: says it reached 0 but ended on something else`);
   }
 };
 
@@ -43,7 +43,7 @@ const median = (xs) => {
   return s.length ? s[Math.floor(s.length / 2)] : NaN;
 };
 
-console.log(`${SEEDS} instances per row. "wins" = walks that reached the bit.\n`);
+console.log(`${SEEDS} instances per row. "wins" = walks that reached 0.\n`);
 console.log(
   'level                          λ   |E|  planted  greedy wins  sorted wins  canonical wins  canonical steps  canonical peak',
 );
@@ -59,7 +59,7 @@ for (let level = 0; level < LEVELS.length; level++) {
       checkWalk('greedy', inst.greedy, inst, tag);
       checkWalk('sorted', inst.sorted, inst, tag);
       checkWalk('canonical', inst.canonical, inst, tag);
-      if (Math.abs(inst.sample - inst.bit) > 1e-6) fail(`${tag}: E is not worth the bit`);
+      if (Math.abs(inst.sample - inst.bit) > 1e-6) fail(`${tag}: E is not worth 0`);
       if (inst.canonical.outcome === 'stuck') fail(`${tag}: canonical form stopped short of a number`);
       row.size.push(inst.E.n);
       row.planted.push(inst.planted.steps.length);

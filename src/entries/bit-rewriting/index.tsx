@@ -3,9 +3,9 @@ import { createBitRewriting, knobForLambda, knobForLevel } from './sketch';
 
 export const bitRewriting: Entry = {
   slug: 'bit-rewriting',
-  title: 'Hiding a bit in algebra',
+  title: 'Hiding a zero in algebra',
   date: '2026-11-15',
-  dek: 'A generator hides a 0 or a 1 inside a long expression and keeps the way back. Three attackers who are given only the expression try to find a way back of their own.',
+  dek: 'A generator hides a 0 inside a long expression and keeps the way back. Three attackers who are given only the expression try to find a way back of their own.',
   tags: ['algebra', 'rewriting', 'cryptography', 'canvas'],
   knobs: [
     { label: 'Security parameter λ', default: knobForLambda(16) },
@@ -18,7 +18,7 @@ export const bitRewriting: Entry = {
     { label: 'Graph height', default: 0.5 },
   ],
   pads: [
-    { label: 'Watch the generator hide the bit' },
+    { label: 'Watch the generator hide the zero' },
     { label: 'Attacker 1: downhill only' },
     { label: 'Attacker 2: sort, then downhill' },
     { label: 'Attacker 3: multiply everything out' },
@@ -52,8 +52,8 @@ export const bitRewriting: Entry = {
 
       <h2>What to do</h2>
       <p>
-        Here T is a single bit, 0 or 1. The screen plays five walks in turn on the same instance,
-        and pads 1 to 5 jump to any of them. First the generator walks uphill from the bit to E.
+        Here T is always 0, so E is a long expression that is zero whatever its variables are. The screen plays five walks in turn on the same instance,
+        and pads 1 to 5 jump to any of them. First the generator walks uphill from 0 to E.
         Then three attackers, who see only E, each try to walk back down. Last, the generator's
         own walk is played backwards: that is the planted path. Before each step the subterm
         about to be rewritten lights up, and the identity being used is written above the
@@ -61,8 +61,8 @@ export const bitRewriting: Entry = {
       </p>
       <p>
         The graph at the bottom plots the size of the expression along each way down from E, with
-        the number of steps on a logarithmic scale. A dot on the floor means the walk reached the
-        bit, a cross means it got stuck, and an upright bar means it ran out of budget. The panel
+        the number of steps on a logarithmic scale. A dot on the floor means the walk reached
+        0, a cross means it got stuck, and an upright bar means it ran out of budget. The panel
         on the right says the same in words.
       </p>
       <p>
@@ -92,20 +92,20 @@ export const bitRewriting: Entry = {
 
       <h2>Knowing the answer is not the problem</h2>
       <p>
-        Give every variable a random value and work E out. It comes to 0 or to 1, and that is T.
+        Give every variable a random value and work E out. It comes to 0, and that is T.
         This works on every generator here and takes no thought at all. The panel shows it as
         "plug in numbers".
       </p>
       <p>
         It does not break anything, because the problem asks for a walk, and a number is not a
         walk. It does show that the difficulty has to live in finding a proof, not in
-        finding the answer. It also shows why a single bit is too easy a target for the real
-        thing: the attacker here always knows where the walk must end.
+        finding the answer. It also shows why a fixed target is too easy for the real thing: the
+        attacker here always knows where the walk must end.
       </p>
 
       <h2>Generators 0 and 1: downhill works</h2>
       <p>
-        Generator 0 uses numbers only. It pads the bit with + 0 and · 1, and hides zeros as
+        Generator 0 uses numbers only. It pads the 0 with + 0 and · 1, and hides zeros as
         something minus itself or zero times something. Generator 1 does the same with variables,
         so the answer can no longer be reached by arithmetic alone.
       </p>
@@ -133,14 +133,14 @@ export const bitRewriting: Entry = {
         Now attacker 1 stops partway down, at an expression where every edge leads to something
         the same size or longer. The panel counts those edges for whatever is on screen. The
         planted path gets through because it knows which sideways steps to take first. In 200
-        instances at each setting, attacker 1 reached the bit 48% of the time at λ = 8 and 6% of
+        instances at each setting, attacker 1 reached 0 48% of the time at λ = 8 and 6% of
         the time at λ = 40.
       </p>
       <p>
         Attacker 2 repairs this cheaply. It puts every sum and every product into one fixed
         bracketing and one fixed order, which takes only sideways steps, and then goes downhill
         again. Two terms that differ only by shuffling become letter for letter the same. It
-        reached the bit in 98% to 100% of those instances. Shuffling hides nothing, because
+        reached 0 in 98% to 100% of those instances. Shuffling hides nothing, because
         order and bracketing can be normalised without understanding anything else.
       </p>
 
@@ -149,7 +149,7 @@ export const bitRewriting: Entry = {
         Generator 3 hides zeros as P − P where P is a product of several two-term sums, and its
         scrambling may also multiply brackets out. So one copy of P stays as a product while the
         other is partly expanded. Sorting cannot match them any more. At the opening setting,
-        λ = 16, attacker 1 reached the bit in 2% of instances and attacker 2 in 25%.
+        λ = 16, attacker 1 reached 0 in 2% of instances and attacker 2 in 25%.
       </p>
       <p>
         Attacker 3 always has an answer in principle. It multiplies everything out into a sum of
@@ -217,7 +217,7 @@ export const bitRewriting: Entry = {
       <h2>Checking it</h2>
       <p>
         The algebra is in one file with no dependencies, and <code>node tests/rewrite-check.mjs</code>{' '}
-        runs it on 1,000 instances and prints a table of who reached the bit. For each one it checks every step of every walk from the two
+        runs it on 1,000 instances and prints a table of who reached 0. For each one it checks every step of every walk from the two
         expressions either side of it: nothing outside the rewritten subterm may differ, and the
         subterm before and after must be the two sides of one identity. It also checks that no
         step changes the value at a random point. The numbers quoted above are from that script
