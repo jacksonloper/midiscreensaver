@@ -93,6 +93,7 @@ keeps the deploy build small.
 
 | Post | What the pads do |
 | --- | --- |
+| Growing a bit and cutting it back | Start from 0 or 1, step through the rewrites, skip to simplifying, and pick the order the simplifier cuts in |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
 | A tiny planet with people on it | Change how the world is drawn — palette, grid, labels, ice caps, buildings, night lights, stars — and pick somebody to follow |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
