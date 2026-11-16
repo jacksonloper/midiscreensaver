@@ -1,16 +1,22 @@
 import { areaModel } from './area-model';
+import { bitRewriting } from './bit-rewriting';
 import { chromaRain } from './chroma-rain';
 import { compassArithmetic } from './compass-arithmetic';
 import { numberLine } from './number-line';
 import { orbitalChoir } from './orbital-choir';
 import { pulseLattice } from './pulse-lattice';
 import { rightNow } from './right-now';
+import { solveRewriting } from './solve-rewriting';
 import { strandWeave } from './strand-weave';
 import { tinyPlanet } from './tiny-planet';
+import { oneTile } from './one-tile';
 import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
 export const entries: Entry[] = [
+  oneTile,
+  solveRewriting,
+  bitRewriting,
   compassArithmetic,
   tinyPlanet,
   areaModel,

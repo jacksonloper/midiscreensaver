@@ -86,13 +86,35 @@ npx playwright@latest install chromium   # once
 node tests/midi-mapping.mjs              # CHROME_PATH=... to use an existing Chromium
 ```
 
-Playwright is not a dependency. This script is the only thing that uses it, and leaving it out
+`tests/rewrite-check.mjs` checks the algebra behind "Hiding a zero in algebra" and prints the
+success rates the post quotes. It needs nothing but Node 22.18 or newer:
+
+```bash
+node tests/rewrite-check.mjs             # SEEDS=200 for the numbers in the post
+```
+
+`tests/solve-check.mjs` does the same for "Solving for x, y and z, one rewrite at a time":
+
+```bash
+node tests/solve-check.mjs               # SEEDS=200 for the numbers in the post
+```
+
+`tests/grid-check.mjs` does the same for "Back to one tile":
+
+```bash
+node tests/grid-check.mjs                # SEEDS=100 for the numbers in the post
+```
+
+Playwright is not a dependency. The MIDI script is the only thing that uses it, and leaving it out
 keeps the deploy build small.
 
 ## The posts
 
 | Post | What the pads do |
 | --- | --- |
+| Back to one tile | Watch one tile become a board full of tiles by swaps from a short list, then pick which attacker tries to turn the mess back into the one tile |
+| Solving for x, y and z, one rewrite at a time | Watch a generator scramble a solved system of equations, then pick which attacker tries to solve it, or play the generator's way back |
+| Hiding a zero in algebra | Watch a generator hide a zero in a long expression or a small circuit, then pick which attacker tries to get it back, or play the planted path |
 | Multiplying with a ruler and compass | Pick which answer to construct — x · y, x ÷ y or √(xy) — step through it by hand, and restyle it |
 | A tiny planet with people on it | Change how the world is drawn — palette, grid, labels, ice caps, buildings, night lights, stars — and pick somebody to follow |
 | Multiplication as a rectangle | Change how the area model is drawn — palette, grid, labels, spacing, fill, glow, sweep, readout |
