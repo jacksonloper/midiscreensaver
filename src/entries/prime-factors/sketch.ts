@@ -128,6 +128,8 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
   let spanS = knobToSpan(0.32);
   let colsS = 30;
   let lastPrimesOnly = primesOnly;
+  /** Number and factorisation on separate lines, once they stop fitting on one. */
+  let twoLine = false;
 
   const flashes: Flash[] = [];
   const say = (text: string): void => {
@@ -221,8 +223,10 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
       const footer = Math.min(height * 0.24, 128);
 
       const vHi = Math.floor(pos + spanS) + 1;
-      const yLabelW = type * 0.62 * (fmt(vHi).length + 0.8);
-      const panelW = labels ? Math.min(type * 0.62 * 24, width * 0.36) : 0;
+      // With the list on, the numbers are read on the right, so the left
+      // axis goes and the plot takes its room.
+      const yLabelW = labels ? 0 : type * 0.62 * (fmt(vHi).length + 0.8);
+      const panelW = labels ? Math.min(type * 0.62 * 24, width * 0.38) : 0;
 
       const plotX = margin + yLabelW;
       const plotY = top + type * 2.2;
@@ -387,64 +391,118 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
 
       /* ---------------------------------------------------------- y axis */
 
-      ctx.font = `500 ${type * 0.86}px ${MONO}`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      const yStep = niceStep((type * 1.6) / cellH, 1);
-      for (let v = Math.ceil(vLo / yStep) * yStep; v <= vHi; v += yStep) {
-        const y = rowY(v);
-        if (y < plotY + type * 0.4 || y > plotB - type * 0.4) continue;
-        ctx.fillStyle = 'rgba(170, 180, 210, 0.7)';
-        ctx.fillText(fmt(v), plotX - type * 0.5, y);
-        ctx.fillStyle = 'rgba(170, 180, 210, 0.35)';
-        ctx.fillRect(plotX - type * 0.3, Math.round(y), type * 0.3, 1);
+      if (!labels) {
+        ctx.font = `500 ${type * 0.86}px ${MONO}`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const yStep = niceStep((type * 1.6) / cellH, 1);
+        for (let v = Math.ceil(vLo / yStep) * yStep; v <= vHi; v += yStep) {
+          const y = rowY(v);
+          if (y < plotY + type * 0.4 || y > plotB - type * 0.4) continue;
+          ctx.fillStyle = 'rgba(170, 180, 210, 0.7)';
+          ctx.fillText(fmt(v), plotX - type * 0.5, y);
+          ctx.fillStyle = 'rgba(170, 180, 210, 0.35)';
+          ctx.fillRect(plotX - type * 0.3, Math.round(y), type * 0.3, 1);
+        }
       }
 
       /* ------------------------------------------------ factor labels */
 
       if (labels) {
-        // Every row if there is room, otherwise every n-th — on multiples of
-        // n, so the labels ride along with their rows instead of flickering.
-        const stride = Math.max(1, Math.ceil((type * 1.15) / cellH));
-        const step = stride === 1 ? 1 : niceStep(stride, 1);
-        const lx = plotX + plotW + type * 0.8;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.font = `500 ${type * 0.86}px ${MONO}`;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(lx - 2, plotY, width - lx, plotH);
-        ctx.clip();
-        for (let v = Math.ceil(vLo / step) * step; v <= vHi; v += step) {
-          const y = rowY(v);
-          if (y < plotY - cellH || y > plotB + cellH) continue;
-          let at = lx;
-          const put = (text: string, color: string): void => {
-            ctx.fillStyle = color;
-            ctx.fillText(text, at, y);
-            at += ctx.measureText(text).width;
-          };
-          put(`${fmt(v)} `, 'rgba(225, 232, 250, 0.9)');
-          if (v === 1) {
-            put('= 1', 'rgba(140, 150, 180, 0.7)');
-            continue;
-          }
+        type Run = Array<[string, string]>;
+        const DIM = 'rgba(140, 150, 180, 0.7)';
+        /** The right-hand side of "n = …", as coloured pieces. */
+        const factorRun = (v: number): Run => {
+          if (v === 1) return [['= 1', DIM]];
           const f = factorise(v);
-          if (f.length === 1 && f[0][1] === 1) {
-            put('prime', hsl(hueShift + 48, 90, 68));
-            continue;
-          }
-          put('= ', 'rgba(140, 150, 180, 0.7)');
+          if (f.length === 1 && f[0][1] === 1) return [['prime', hsl(hueShift + 48, 90, 68)]];
+          const run: Run = [['= ', DIM]];
           f.forEach(([p, k], j) => {
-            if (j > 0) put('·', 'rgba(140, 150, 180, 0.7)');
+            if (j > 0) run.push(['·', DIM]);
             const onAxis = p >= xMin && p <= xMax;
-            put(
+            run.push([
               `${fmt(p)}${sup(k)}`,
               isSmallPrime(p) && onAxis ? hsl(primeHue(p, hueShift), 80, 70) : 'rgba(200, 205, 220, 0.5)',
-            );
+            ]);
           });
+          return run;
+        };
+        const runWidth = (run: Run): number =>
+          run.reduce((w, [t]) => w + ctx.measureText(t).width, 0);
+        const putRun = (run: Run, x: number, y: number): void => {
+          for (const [t, c] of run) {
+            ctx.fillStyle = c;
+            ctx.fillText(t, x, y);
+            x += ctx.measureText(t).width;
+          }
+        };
+
+        const fontSize = type * 0.86;
+        const lh = fontSize * 1.18;
+        const lx = plotX + plotW + type * 0.9;
+        const room = width - lx - margin * 0.5;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = `500 ${fontSize}px ${MONO}`;
+
+        // Every row if there is room, otherwise every n-th — on multiples of
+        // n, so the labels ride along with their rows instead of flickering.
+        const blockH = twoLine ? lh * 2 + fontSize * 0.75 : lh;
+        const stride = Math.max(1, Math.ceil(blockH / cellH));
+        const step = stride === 1 ? 1 : niceStep(stride, 1);
+
+        const rows: Array<{ v: number; y: number; head: string; run: Run }> = [];
+        let widest = 0;
+        for (let v = Math.ceil(vLo / step) * step; v <= vHi; v += step) {
+          const y = rowY(v);
+          if (y < plotY - blockH || y > plotB + blockH) continue;
+          const head = fmt(v);
+          const run = factorRun(v);
+          widest = Math.max(widest, ctx.measureText(`${head} `).width + runWidth(run));
+          rows.push({ v, y, head, run });
+        }
+        // Split onto two lines as soon as one label overflows; join back only
+        // with some slack, so a long label scrolling past doesn't flip it.
+        const nextTwoLine = twoLine ? widest > room * 0.85 : widest > room;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(plotX + plotW + 1, plotY - lh, width - plotX - plotW, plotH + lh * 2);
+        ctx.clip();
+        const cue = 'rgba(150, 165, 210, 0.4)';
+        for (const { y, head, run } of rows) {
+          const ry = Math.round(y) + 0.5;
+          // A leader from the row out to its label.
+          ctx.strokeStyle = cue;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(plotX + plotW + 2, ry);
+          ctx.lineTo(lx - type * 0.35, ry);
+          if (twoLine) {
+            // A bracket holds the two lines together, so a factorisation is
+            // never read as belonging to the number underneath it.
+            const bx = Math.round(lx - type * 0.35) + 0.5;
+            const t = Math.round(y - lh * 0.95) + 0.5;
+            const b = Math.round(y + lh * 0.95) + 0.5;
+            ctx.moveTo(bx + type * 0.2, t);
+            ctx.lineTo(bx, t);
+            ctx.lineTo(bx, b);
+            ctx.lineTo(bx + type * 0.2, b);
+          }
+          ctx.stroke();
+
+          if (twoLine) {
+            ctx.fillStyle = 'rgba(225, 232, 250, 0.92)';
+            ctx.fillText(head, lx, y - lh * 0.5);
+            putRun(run, lx + fontSize * 0.6, y + lh * 0.5);
+          } else {
+            ctx.fillStyle = 'rgba(225, 232, 250, 0.92)';
+            ctx.fillText(`${head} `, lx, y);
+            putRun(run, lx + ctx.measureText(`${head} `).width, y);
+          }
         }
         ctx.restore();
+        twoLine = nextTwoLine;
       }
 
       /* -------------------------------------------------------- readout */
