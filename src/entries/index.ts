@@ -3,6 +3,7 @@ import { chromaRain } from './chroma-rain';
 import { compassArithmetic } from './compass-arithmetic';
 import { numberLine } from './number-line';
 import { orbitalChoir } from './orbital-choir';
+import { primeFactors } from './prime-factors';
 import { pulseLattice } from './pulse-lattice';
 import { rightNow } from './right-now';
 import { strandWeave } from './strand-weave';
@@ -11,6 +12,7 @@ import type { Entry } from './types';
 
 /** Newest first — this is the order the index page shows. */
 export const entries: Entry[] = [
+  primeFactors,
   compassArithmetic,
   tinyPlanet,
   areaModel,
