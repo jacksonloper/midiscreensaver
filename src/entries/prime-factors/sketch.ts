@@ -441,7 +441,7 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
         // labelled at a slightly smaller size beats every other row at full
         // size, which would only ever show the even numbers.
         const perFont = twoLine ? 2.5 : 1.15;
-        const fontSize = clamp(cellH / perFont, Math.max(8, type * 0.62), type * 0.86);
+        const fontSize = clamp(cellH / perFont, 8, type * 0.86);
         const lh = fontSize * (twoLine ? 1.08 : 1.15);
         const lx = plotX + plotW + type * 0.9;
         const room = width - lx - margin * 0.5;
