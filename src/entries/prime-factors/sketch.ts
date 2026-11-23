@@ -437,8 +437,12 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
           }
         };
 
-        const fontSize = type * 0.86;
-        const lh = fontSize * 1.18;
+        // Labels shrink a little before they start skipping rows: every row
+        // labelled at a slightly smaller size beats every other row at full
+        // size, which would only ever show the even numbers.
+        const perFont = twoLine ? 2.5 : 1.15;
+        const fontSize = clamp(cellH / perFont, Math.max(8, type * 0.62), type * 0.86);
+        const lh = fontSize * (twoLine ? 1.08 : 1.15);
         const lx = plotX + plotW + type * 0.9;
         const room = width - lx - margin * 0.5;
         ctx.textAlign = 'left';
@@ -447,7 +451,7 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
 
         // Every row if there is room, otherwise every n-th — on multiples of
         // n, so the labels ride along with their rows instead of flickering.
-        const blockH = twoLine ? lh * 2 + fontSize * 0.75 : lh;
+        const blockH = fontSize * perFont;
         const stride = Math.max(1, Math.ceil(blockH / cellH));
         const step = stride === 1 ? 1 : niceStep(stride, 1);
 
