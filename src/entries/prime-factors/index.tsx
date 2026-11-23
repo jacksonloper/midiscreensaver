@@ -90,6 +90,13 @@ export const primeFactors: Entry = {
         travel to 300 rows per second at the top. Pad 1 reverses direction and pad 3 goes back to 1.
       </p>
       <p>
+        The table stops at ten billion. The dots would carry on happily, but the list on the right
+        factors each row by trying every divisor up to its square root, and past that point a prime
+        row starts to cost noticeable time. Scrolling at top speed takes over a year to get there;
+        pressing pad 4 ten times gets there at once. When it does, the screen says so and waits for
+        you to reverse or go back to 1.
+      </p>
+      <p>
         Pad 5 removes every column that is not prime. The small dots disappear and the remaining
         columns get wider, which leaves only the factorisations.
       </p>

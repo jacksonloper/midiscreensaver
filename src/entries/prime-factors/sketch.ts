@@ -157,8 +157,12 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
             say('BACK TO 1');
             break;
           case 3:
+            if (pos >= MAX_Y) {
+              say('ALREADY AT THE TOP');
+              break;
+            }
             pos = Math.min(MAX_Y, Math.max(1, Math.floor(pos)) * 10);
-            say('×10');
+            say(pos >= MAX_Y ? '×10 — AS FAR AS IT GOES' : '×10');
             break;
           case 4:
             primesOnly = !primesOnly;
@@ -450,7 +454,10 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
       ctx.font = `500 ${type * 0.78}px ${MONO}`;
       setTracking(ctx, '0.16em');
       const rate = Math.abs(velocity);
-      const rateText = paused || rate < 0.01 ? 'STILL' : `${rate < 10 ? rate.toFixed(1) : Math.round(rate)} ROWS/S ${velocity >= 0 ? '↑' : '↓'}`;
+      const atEnd = pos >= MAX_Y;
+      const rateText = atEnd
+        ? 'END OF THE LINE'
+        : paused || rate < 0.01 ? 'STILL' : `${rate < 10 ? rate.toFixed(1) : Math.round(rate)} ROWS/S ${velocity >= 0 ? '↑' : '↓'}`;
       ctx.fillStyle = '#7c88a8';
       ctx.fillText(
         `ROWS ${fmt(Math.max(1, Math.floor(pos)))}–${fmt(Math.floor(pos + spanS))}   FACTORS ${xMin}–${xMax}${primesOnly ? ' (PRIMES)' : ''}   ${rateText}`,
@@ -473,6 +480,37 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
       });
       setTracking(ctx, '0em');
 
+      // The table stops at ten billion on purpose. Say so, rather than leave a
+      // frozen screen that looks broken.
+      if (atEnd) {
+        const cx = plotX + plotW / 2;
+        const cy = plotY + plotH / 2;
+        const lines = [
+          'The table stops at ten billion.',
+          'Past here, factoring the rows on the right by trial division',
+          'starts to cost frames, so the scroll halts.',
+          'Pad 1 reverses, pad 3 goes back to 1.',
+        ];
+        ctx.font = `500 ${type * 0.86}px ${MONO}`;
+        const boxW = Math.min(plotW - type, Math.max(...lines.map((l) => ctx.measureText(l).width)) + type * 2.4);
+        const titleSize = type * 1.3;
+        const boxH = titleSize * 1.9 + lines.length * type * 1.35 + type * 1.2;
+        ctx.fillStyle = 'rgba(5, 6, 11, 0.86)';
+        ctx.fillRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH);
+        ctx.strokeStyle = hsl(hueShift + 48, 90, 62, 0.5);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(Math.round(cx - boxW / 2) + 0.5, Math.round(cy - boxH / 2) + 0.5, Math.round(boxW), Math.round(boxH));
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = `600 ${titleSize}px ${MONO}`;
+        setTracking(ctx, '0.2em');
+        ctx.fillStyle = hsl(hueShift + 48, 90, 72);
+        ctx.fillText('END OF THE LINE', cx, cy - boxH / 2 + type * 0.8);
+        setTracking(ctx, '0em');
+        ctx.font = `500 ${type * 0.86}px ${MONO}`;
+        ctx.fillStyle = 'rgba(200, 210, 235, 0.85)';
+        lines.forEach((l, i) => ctx.fillText(l, cx, cy - boxH / 2 + type * 0.8 + titleSize * 1.9 + i * type * 1.35, plotW - type * 2));
+      }
     },
   };
 };
