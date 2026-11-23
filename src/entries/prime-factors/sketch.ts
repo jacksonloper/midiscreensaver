@@ -421,7 +421,7 @@ export const createPrimeFactors: SketchFactory = (): Sketch => {
             if (j > 0) run.push(['·', DIM]);
             const onAxis = p >= xMin && p <= xMax;
             run.push([
-              `${fmt(p)}${sup(k)}`,
+              `${p}${sup(k)}`,
               isSmallPrime(p) && onAxis ? hsl(primeHue(p, hueShift), 80, 70) : 'rgba(200, 205, 220, 0.5)',
             ]);
           });
